@@ -55,6 +55,15 @@ upstream backend_server {
 ```
 
 ## 2.核心指令详解
+
+|配置块	|功能描述|
+| -- | -- |
+|全局块	|与Nginx运行相关的全局设置|
+|events块	|与网络连接有关的设置|
+|http块	|代理、缓存、日志、虚拟主机等的配置|
+|server块	|虚拟主机的参数设置（一个http块可包含多个server块）|
+|location块	|定义请求路由及页面处理方式|
+
 - 定义后端服务器地址
 ```nginx
 location /api/ {
@@ -243,10 +252,9 @@ server_tokens off;
 在 Vue 项目中，通过 Docker 可以实现 自动化构建、部署和运行，无需手动配置 Nginx 或管理服务器环境。
 
 ### 自动化核心思路
-- 通过 Docker 实现以下自动化：
-  - 构建：将 Vue 项目打包成静态文件（dist）。
-  - 托管：用 Nginx 镜像托管静态文件，并自动应用配置（nginx.conf）。
-  - 运行：一键启动容器，无需手动操作服务器。
+- 构建：将 Vue 项目打包成静态文件（dist）。
+- 托管：用 Nginx 镜像托管静态文件，并自动应用配置（nginx.conf）。
+- 运行：一键启动容器，无需手动操作服务器。
 
 ### 具体实现步骤
 - 准备 Vue 项目，确保项目根目录有：
@@ -287,17 +295,23 @@ server {
 ```bash
 # 阶段1：构建阶段用 Node 镜像打包 Vue 项目
 FROM node:16 AS build
+# 设置工作目录
 WORKDIR /app
 COPY package*.json ./
 RUN npm install
+# 将当前目录的所有文件复制到容器的 /app 目录
 COPY . .
 RUN npm run build
 
 # 阶段2：运行阶段用 Nginx 镜像托管 dist 文件
 FROM nginx:alpine
+# 从构建阶段复制文件​放入nginx的静态文件目录中
 COPY --from=build /app/dist /usr/share/nginx/html
+# 复制自定义 Nginx 配置​，覆盖默认的 Nginx 配置
 COPY nginx.conf /etc/nginx/conf.d/default.conf
+# 端口号与nginx监听端口号一致
 EXPOSE 80
+# 启动 Nginx
 CMD ["nginx", "-g", "daemon off;"]
 ```
 - 构建并运行容器（手动方式）
@@ -311,7 +325,7 @@ docker run -d -p 8080:80 my-vue-app
 // 访问 http://localhost:8080 即可看到部署的 Vue 应用。
 ```
 - 构建并运行容器（自动化优化）
-```
+```yml
 // 编写docker-compose.yml 管理
 version: '3'
 services:
@@ -326,7 +340,7 @@ services:
 
 ### 高级自动化技巧
 - 结合 CI/CD（如 GitHub Actions）
-```
+```yml
 // 在 .github/workflows/deploy.yml 中配置自动化构建和推送镜像
 name: Deploy Vue App
 on: [push]
@@ -339,7 +353,7 @@ jobs:
       - run: docker run -d -p 8080:80 my-vue-app
 ```
 - 使用多阶段构建优化镜像
-```
+```bash
 // dockerfile
 # 阶段1：构建
 FROM node:16 AS build
@@ -354,13 +368,13 @@ COPY --from=build /app/dist /usr/share/nginx/html
 COPY --from=build /app/nginx.conf /etc/nginx/conf.d/default.conf
 ```
 - 环境变量注入
-```
+```bash
 // dockerfile：通过 Docker 传递 Vue 的环境变量
 ARG API_URL
 ENV VUE_APP_API_URL=$API_URL
 ```
 - 构建时指定变量
-```
+```bash
 docker build --build-arg API_URL=https://api.example.com -t my-vue-app .
 ```
 
@@ -377,7 +391,7 @@ docker build --build-arg API_URL=https://api.example.com -t my-vue-app .
 - 解决：修改 docker-compose.yml 中的端口映射（如 "3000:80"）。
 - 问题3：构建缓慢
 - 解决：利用 Docker 层缓存，优先复制 package.json 再安装依赖：
-```
+```bash
 // dockerfile
 COPY package*.json ./
 RUN npm install

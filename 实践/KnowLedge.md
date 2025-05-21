@@ -304,3 +304,111 @@ ele.addEventListener('click', listener.get(ele), false)
   - 接口调用函数get：接口调用根据返回值进行state赋值
   - 组件触发函数handle：绑定click、change等操作函数
   - 功能封装函数：非上述函数的功能函数
+
+
+## 12.safari浏览器差异
+- 遮罩覆盖：父容器设置`position: realtive`，子组件设置`position: fixed`会导致子组件遮罩限制在父容器中，无法覆盖整个视口
+- 元素遮挡：元素设置`z-index: -1`导致元素直接被页面覆盖无法显示
+
+
+## 13.图片的四种形态
+### 1.四种形态概述
+|形式	|描述	|典型用途	|示例场景|
+| -- | -- | -- | -- |
+|Image对象	|内存中的图像数据，可通过DOM操作或Canvas渲染	|图像显示、编辑	|document.createElement('img')|
+|File对象	|通常是用户通过`<input type="file">`获取的文件对象，继承自Blob	|文件上传、表单提交	|input.files[0]|
+|Base64	|用ASCII字符串表示的二进制数据（编码后体积增大约33%）	|内联图片（如HTML/CSS）、Data URL	|data:image/png;base64,...|
+|二进制流	|原始的二进制数据（如ArrayBuffer、Uint8Array）	|网络传输、后端存储	|fetch()返回的响应体|
+
+
+### 1.四种形态互相转换
+- File对象 → Base64
+
+```javascript
+function fileToBase64(file) {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = () => resolve(reader.result); // 结果格式: "data:image/png;base64,..."
+  });
+}
+
+// 使用
+const base64String = await fileToBase64(fileObject);
+```
+
+- Base64 → Image对象
+
+```javascript
+function base64ToImage(base64) {
+  const img = new Image();
+  img.src = base64; // 直接赋值Base64字符串
+  return new Promise((resolve) => {
+    img.onload = () => resolve(img);
+  });
+}
+
+// 使用
+const imgElement = await base64ToImage(base64String);
+```
+
+- Image对象 → Canvas (获取二进制流或Base64)
+
+```javascript
+function imageToCanvas(image) {
+  const canvas = document.createElement('canvas');
+  canvas.width = image.width;
+  canvas.height = image.height;
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(image, 0, 0);
+  return canvas;
+}
+
+// 转Base64
+const canvas = imageToCanvas(imgElement);
+const newBase64 = canvas.toDataURL('image/jpeg', 0.8); // 可选质量参数
+
+// 转二进制流（Blob）
+canvas.toBlob((blob) => {
+  console.log(blob); // Blob对象
+}, 'image/jpeg', 0.8);
+```
+
+- File对象 → 二进制流
+
+```javascript
+// File对象本身是Blob的子类，可直接使用
+const arrayBuffer = await fileObject.arrayBuffer(); // 转为ArrayBuffer
+const uint8Array = new Uint8Array(arrayBuffer);    // 转为Uint8Array
+```
+
+- 二进制流 → Base64
+
+```javascript
+function bufferToBase64(buffer) {
+  const bytes = new Uint8Array(buffer);
+  let binary = '';
+  bytes.forEach(b => binary += String.fromCharCode(b));
+  return btoa(binary); // 原生Base64编码
+}
+
+// 使用
+const base64 = bufferToBase64(arrayBuffer);
+```
+
+- Base64 → File对象
+
+```javascript
+function base64ToFile(base64, filename) {
+  const arr = base64.split(',');
+  const mime = arr[0].match(/:(.*?);/)[1];
+  const bstr = atob(arr[1]);
+  let n = bstr.length;
+  const u8arr = new Uint8Array(n);
+  while (n--) u8arr[n] = bstr.charCodeAt(n);
+  return new File([u8arr], filename, { type: mime });
+}
+
+// 使用
+const file = base64ToFile(base64String, 'image.png');
+```
