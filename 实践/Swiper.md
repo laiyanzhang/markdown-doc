@@ -20,7 +20,7 @@
 
 ### 4.局部注册组件
 
-```javascript
+```vue
 <template>
   <div>
     <!-- 使用 swiper 组件 -->

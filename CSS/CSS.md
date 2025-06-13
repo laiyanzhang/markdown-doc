@@ -235,29 +235,35 @@
 ### 1.文字超过显示省略号
 ```css
 // 显示单行
-white-space: nowrap; // 文本强制不换行；
-text-overflow: ellipsis; // 文本溢出显示省略号；
-overflow: hidden; // 溢出的部分隐藏；
+.text {
+  white-space: nowrap; // 文本强制不换行；
+  text-overflow: ellipsis; // 文本溢出显示省略号；
+  overflow: hidden; // 溢出的部分隐藏；
+}
 ```
 ```css
 // 显示双行
-overflow: hidden;
--webkit-line-clamp: 2;
-text-overflow: ellipsis;
-display: -webkit-box;
--webkit-box-orient: vertical;
+.text {
+  overflow: hidden;
+  -webkit-line-clamp: 2;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+}
 ```
 
 ### 2.文字颜色渐变
 
 ```css
-background: linear-gradient(
-  to right,
-  rgb(65, 85, 240),
-  rgb(74, 213, 255)
-);
-background-clip: text;
--webkit-text-fill-color: transparent;
+.text {
+  background: linear-gradient(
+    to right,
+    rgb(65, 85, 240),
+    rgb(74, 213, 255)
+  );
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
 ```
 
 ### 3.图片自适应横竖屏展示
@@ -277,6 +283,104 @@ background-clip: text;
     object-fit: contain; // 保持宽高比完整显示，不裁剪内容但可能留白
   }
 }
+```
+
+### 4.超出宽度显示tooltip
+```vue
+<template>
+  <div
+    v-for="(item, index) in list"
+    :key="index"
+    class="module_item"
+  >
+    <div class="module_header">
+      <div class="module_title">
+        <div class="title">{{ item.title }}</div>
+        <a-tooltip
+          :title="item.des"
+          placement="top"
+          :visible="visibleId == item.id"
+        >
+          <div
+            :ref="'textRef_' + item.id"
+            class="des"
+            @mouseenter="handleMouseEnter(item.id)"
+            @mouseleave="handleMouseLeave"
+          >
+            {{ item.des }}
+          </div>
+        </a-tooltip>
+      </div>
+    </div>
+    <div class="module_content">
+      <!-- 内容 -->  
+    </div>
+  </div>
+</template>
+
+<script>
+export default {
+  data() {
+    return {
+      visibleId: '',
+      list: []
+    }
+  },
+  methods: {
+    isOverflowing(element) {
+      return element ? element.scrollWidth > element.clientWidth : false
+    },
+    // 处理鼠标进入事件
+    handleMouseEnter(id) {
+      const element = this.$refs['textRef_' + id][0]
+      if (this.isOverflowing(element)) {
+        this.visibleId = id
+      }
+    },
+    // 处理鼠标离开事件
+    handleMouseLeave() {
+      this.visibleId = ''
+    },
+  }
+}
+</script>
+
+<style lang="less" scoped>
+.module_item {
+  margin-top: 0.12rem;
+  &:first-child {
+    margin-top: 0;
+  }
+  .module_header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    .module_title {
+      display: flex;
+      align-items: center;
+      gap: 0.08rem;
+      .title {
+        color: #000;
+        font-size: 0.14rem;
+      }
+      .des {
+        width: 1.83rem;
+        color: #999;
+        font-size: 0.1rem;
+        text-align: left;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+    }
+  }
+  .modules {
+    margin-top: 0.08rem;
+    display: flex;
+    gap: 0.08rem;
+  }
+}
+</style>
 ```
 
 
@@ -320,7 +424,7 @@ background-clip: text;
     }
   }
 }
-</style>
+</>
 ```
 
 ### 2.grid布局（CSS + JS计算）
