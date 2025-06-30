@@ -412,3 +412,19 @@ function base64ToFile(base64, filename) {
 // 使用
 const file = base64ToFile(base64String, 'image.png');
 ```
+
+
+## 14.更换项目字体
+```html
+<!-- 通过CDN获取字体 -->
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;700&display=swap" rel="stylesheet">
+```
+```css
+// 将思源黑体放在首位，若加载失败则继续沿用原来的字体
+body {
+  font-family: 'Noto Sans SC', sans-serif, -apple-system, BlinkMacSystemFont,
+    'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei',
+    'Helvetica Neue', Helvetica, Arial, sans-serif, 'Apple Color Emoji',
+    'Segoe UI Emoji', 'Segoe UI Symbol';
+}
+```
