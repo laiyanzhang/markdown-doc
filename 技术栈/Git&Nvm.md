@@ -84,3 +84,16 @@
 - nvm use *：切换使用的node版本
 - nvm install *：安装指定的node版本
 - nvm version：查看当前的node版本
+
+
+## 11.sourctree提交报错
+### 1.提交时ssh端口22报错
+- 设置.ssh文件夹下的config文件
+```txt
+Host github.com
+  Hostname ssh.github.com  # 关键：使用 GitHub 的 SSH 代理服务
+  Port 443                 # 强制使用 HTTPS 端口
+  User git
+  IdentityFile ~/.ssh/id_rsa  # 确认路径指向您的私钥
+```
+- 修改仓库设置，将远程仓库路径的ssh地址修改为https地址

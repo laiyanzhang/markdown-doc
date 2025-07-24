@@ -132,8 +132,8 @@ watch: {
      - 后备内容：`v-slot="{ user = { firstName: 'Guest' } }"`
   - 语法缩写：`v-slot:user => #user (v-slot => #)`
   - 插槽访问：
-     - this.\$slots：访问静态插槽内容
-     - this.\$scopedSlots：访问作用域插槽
+     - `this.$slots`：访问静态插槽内容
+     - `this.$scopedSlots`：访问作用域插槽
   - 2.6版本废弃语法：
      - slot属性：具名插槽，可用在template或者普通元素上
      - slot-scope属性：作用域插槽，可用在template或者普通元素上
@@ -147,9 +147,9 @@ watch: {
   - 访问子组件实例或子元素：`this.$refs.name`（元素绑定ref属性name）
   - v-for与ref搭配使用：`this.$refs.name`返回子组件数组，`this.$refs.name[0]`返回对应子组件
   - 程序化的事件侦听器：
-     - 通过 \$on(eventName, eventHandler) 侦听一个事件
-     - 通过 \$once(eventName, eventHandler) 一次性侦听一个事件
-     - 通过 \$off(eventName, eventHandler) 停止侦听一个事件
+     - 通过 `$on(eventName, eventHandler)` 侦听一个事件
+     - 通过 `$once(eventName, eventHandler)` 一次性侦听一个事件
+     - 通过 `$off(eventName, eventHandler)` 停止侦听一个事件
   - 模板定义的替代品
      - 内联模板：组件内出现inline-template这个attribute
      - X-Template：script标签内定义text/x-template类型，通过id引用定义的模板
@@ -207,17 +207,21 @@ directives: {
 
 
 ## 9.transition
-- 过渡
-```
-<transition name="fade">
-   <p v-if="show">hello</p>
-</transition>
+```vue
+<template>
+  <transition name="fade">
+    <p v-if="show">hello</p>
+  </transition>
+</template>
+
+<style>
 .fade-enter-active, .fade-leave-active {
   transition: opacity .5s;
 }
 .fade-enter, .fade-leave-to {
   opacity: 0;
 }
+</style>
 ```
 - transition处理顺序：CSS过渡--JavaScript钩子--下一帧立即执行
 - 过渡类名：v对应transition的name
@@ -246,13 +250,47 @@ directives: {
   - in-out：新元素先进行过渡，完成之后当前元素过渡离开
   - out-in：当前元素先进行过渡，完成之后新元素过渡进入
 - 列表过渡：
-  - < transition-group > 组件定义一个列表，默认为一个< span >，可通过tag属性替换为其他元素
-  - 不仅可以进入和离开动画还可以改变定位
-  - 过渡模式不可用
-  - 总是需要key属性
-  - CSS过渡类应用于内部元素而不是容器本身
-  - 过渡类名v-move定义元素改变定位时的切换时间和过渡曲线，元素不可为display: inline
-  
+  - 内置组件：`<transition-group>`
+  - 原理：虚拟DOM对比，追踪确定需要动画的内部元素；在内部元素变化时，为内部元素添加对应的动画样式类；变化完成后移除对应的动画样式类；
+  - tag属性：指定该组件渲染为何种元素，默认为span
+  - name属性：指定为内部元素的类名，用于对应动画样式类
+  - 子项key属性：必须为唯一，不接受index序号
+
+```vue
+<!-- 父组件调用 -->
+<template>
+  <transition-group name="template" tag="div" class="templates">
+    <templateItem
+      v-for="item in list"
+      :key="item.id"
+      :item="item"
+    >
+    </templateItem>
+  </transition-group>
+</template>
+
+<!-- 子组件templateItem中定义动画样式类 -->
+<style lang="scss">
+.template-enter-active,
+.template-leave-active {
+  transition: all 0.5s ease;
+}
+.template-leave-to {
+  opacity: 0;
+  transform: scale(0.8);
+}
+
+/* 确保离开的元素不占用布局空间 */
+.template-leave-active {
+  position: absolute;
+}
+
+/* 移动动画 */
+.template-move {
+  transition: transform 0.5s ease;
+}
+</style>
+```
 
   
 

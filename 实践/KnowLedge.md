@@ -428,3 +428,274 @@ body {
     'Segoe UI Emoji', 'Segoe UI Symbol';
 }
 ```
+
+
+
+## 15.React与Vue对比
+|维度​	|​React|​​	​Vue​​|
+| -- | -- | -- |
+|组件化​	|高度灵活，适合复杂 UI 和状态管理 | 基于模板，结构清晰，开发效率高|
+|数据流追踪 | 严格单向数据流易追踪 | 不遵守规范容易出现双向数据流|
+|SSR配置 | Next成熟 | Nuxt配置复杂度高 |
+|响应性开销 | 手动控制追踪，无响应性开销 | 响应性开销对于深度嵌套数据消耗内存与计算资源|
+|​控制灵活性| 细粒度控制渲染 | 自动优化为主，灵活性较低|
+|虚拟 DOM​	| 全量的Diff对比 | 精准定位到依赖该数据的组件，在通过虚拟DOM局部更新|
+|​学习成本​	|较高，需手动控制数据流以及优化|较低，双向绑定以及响应性依赖更新|
+|​生态系统​	|庞大，企业级支持丰富| 精简、企业级支持较少|
+|​适用场景​	|企业级应用、复杂交互|快速开发、中小型 SPA|
+
+
+## 16.Vue国际化实现
+### 1.安装国际化插件
+- Vue 2项目：`npm install vue-i18n@8`
+- Vue 3项目：`npm install vue-i18n@9`（Vue3必须使用v9+版本，否则会报错）
+
+
+### 2.配置语言包
+- js文件：可包含动态逻辑，如条件判断
+- json文件：纯静态翻译内容
+```javascript
+// zh-CN.js
+export default {
+  common: {
+    welcome: "欢迎来到我的应用",
+    button: {
+      confirm: "确认",
+      cancel: "取消"
+    }
+  },
+  error: {
+    network: "网络开小差了，快检查你的WiFi"
+  }
+}
+
+// en-US.js
+export default {
+  common: {
+    welcome: "Welcome to my app",
+    button: {
+      confirm: "Confirm",
+      cancel: "Cancel"
+    }
+  },
+  error: {
+    network: "Network is taking a nap, check your WiFi"
+  }
+}
+```
+
+### 3.创建实例并应用语言包
+```javascript
+import { createI18n } from 'vue-i18n'
+import en from './locales/en-US'
+import zh from './locales/zh-CN'
+
+const messages = {
+  en,
+  zh
+}
+
+const i18n = createI18n({
+  legacy: false, // Vue3必须设置为false以支持组合式API[5,7](@ref)
+  locale: 'en', // 默认语言
+  fallbackLocale: 'en', // 备用语言（当找不到翻译时使用）
+  messages // 语言包
+})
+
+export const t = i18n.global.t // 导出API可用于js中国际化
+export default i18n
+```
+
+### 4.挂载实例
+```javascript
+import Vue from 'vue'
+import i18n from './locales'
+
+Vue.use(i18n)
+```
+
+
+### 5.使用
+- 基础使用
+```html
+<template>
+  <div>
+    <h1>{{ $t('common.welcome') }}</h1>
+    <button>{{ $t('common.button.confirm') }}</button>
+  </div>
+</template>
+```
+- 带参数使用
+```javascript
+// zh-CN.js
+greeting: "你好，{name}！今天是你加入的第{day}天"
+```
+```html
+<p>{{ $t('greeting', { name: '张三', day: 7 }) }}</p>
+```
+
+### 6.本地存储的语言切换
+- 组件中语言切换
+```html
+<template>
+  <a-select v-model="currentLang" @change="handleLanguageChange">
+    <a-select-option value="en">English</a-select-option>
+    <a-select-option value="zh">中文</a-select-option>
+  </a-select>
+</template>
+
+<script>
+export default {
+  data() {
+    return { currentLang: 'zh' };
+  },
+  created() {
+    this.currentLang = this.$i18n.local
+  },
+  methods: {
+    handleLanguageChange(lang) {
+      this.$i18n.locale = lang
+      localStorage.setItem('lang', lang)
+    },
+  },
+};
+</script>
+```
+- 利用本地存储初始化
+```javascript
+// APP.js
+this.$i18n.locale = localStorage.getItem('lang')
+```
+
+
+### 7.ant-design-vue国际化
+（版本：1.7+）
+- 语言包中引入antd语言包
+```javascript
+// zh-CN/en-US
+import zhCN from 'ant-design-vue/lib/locale-provider/zh_CN'
+export default {
+  common: {
+    welcome: "欢迎来到我的应用",
+    button: {
+      confirm: "确认",
+      cancel: "取消"
+    }
+  },
+  error: {
+    network: "网络开小差了，快检查你的WiFi"
+  }
+  antd: zhCN
+}
+```
+- 引入moment中文包：`main.js`中引入`import 'moment/locale/zh-cn';`
+- 切换语言函数中同步切换moment语言
+```html
+<template>
+  <a-select v-model="currentLang" @change="handleLanguageChange">
+    <a-select-option value="en">English</a-select-option>
+    <a-select-option value="zh">中文</a-select-option>
+  </a-select>
+</template>
+
+<script>
+import moment from 'moment';
+export default {
+  data() {
+    return { currentLang: 'zh' };
+  },
+  created() {
+    this.currentLang = this.$i18n.local
+  },
+  methods: {
+    handleLanguageChange(lang) {
+      this.$i18n.locale = lang
+      localStorage.setItem('lang', lang)
+      moment.locale(lang === 'zh' ? 'zh-cn' : 'en')
+    },
+  },
+};
+</script>
+```
+- 国际化组件应用语言类型
+```html
+<template>
+  <a-config-provider :locale="antdLocale">
+    <router-view />
+  </a-config-provider>
+</template>
+
+<script>
+import { mapGetters } from 'vuex'; // 如果用了 Vuex
+
+export default {
+  computed: {
+    // 从 vue-i18n 的 locale 映射到 Ant Design 的语言包
+    antdLocale() {
+      return this.$i18n.messages[this.$i18n.locale].antd;
+    },
+    // 如果用了 Vuex，可以从 store 获取语言
+    // ...mapGetters(['currentLanguage']),
+  },
+};
+</script>
+<!-- 语言切换函数中切换日期组件语言包 -->
+
+```
+- 同步更新问题：某些组件（如日期选择器）的语言可能需要重新渲染才能生效
+- 项目体积敏感：按需加载语言包
+```javascript
+import('ant-design-vue/lib/locale-provider/en_US').then(enUS => {
+  this.$i18n.messages.en.antd = enUS;
+});
+```
+
+### 8.i18n-ally插件
+- 扩展中安装插件
+- 在项目根目录创建`.vscode/settings.json`
+```json
+{
+  "i18n-ally.localesPaths": ["src/locales"], // 配置多语言的文件
+  "i18n-ally.keystyle": "nested", // 语言包属性名格式嵌套模式nested/平铺模式flat
+  "i18n-ally.sortKeys": true, // 是否自动对键进行排序
+  "i18n-ally.enabledParsers": ["json", "yaml"], // 支持语言包的格式
+  "i18n-ally.sourceLanguage": "zh-CN", // 代码中显示语言、提取文本优先语言、翻译完整性基准
+  "i18n-ally.displayLanguage": "zh-CN", // 插件的按钮、菜单、提示等界面元素的显示语言
+  "i18n-ally.translate.engines": [ // 翻译引擎
+    "google",
+    "deepl"
+  ],
+  "​i18n-ally.enabledFrameworks": ["vue", "react", "js", "ts", "html"] // 支持的前端框架，此为默认值可不定义
+}
+```
+- 命名空间
+```json
+{
+  /* 其他配置 */
+  "i18n-ally.namespace": true,
+  "i18n-ally.pathMatcher": "{locale}/{namespace}.json"
+}
+```
+```
+// 调整目录结构，拆解为多个json分类存储，由index统一导出
+├── locales
+│   ├── en-US
+│   │   ├── common.json
+│   │   ├── special.json
+│   │   └── index.ts
+│   ├── zh-CN
+│   │   ├── common.json
+│   │   ├── special.json
+│   │   └── index.ts
+│   ├── index.ts
+```
+- 插件使用
+  - 右侧栏中选中对应插件
+  - 打开需要国际化的组件
+  - 选择一键处理硬编码/逐个处理硬编码
+  - 命名key（命名空间情况下key加上文件名前缀如`common.`）
+  - 写入中文文件（命名空间情况下需要选择对应拆分文件名）
+  - 对英文文件缺失文案一键翻译
+- 组件内逻辑代码调用
+  - vue2：绑定在Vue实例上通过`this.$t`调用
+  - vue3：通过`import { useI18n } from 'vue-i18n'`导入后`const {t} = useI18n()`获取国际化变量
