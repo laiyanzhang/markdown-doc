@@ -708,4 +708,19 @@ masonry.layout()
 ```
 
 
-## 10.canvas
+## 10.马赛克格子背景
+```css
+.background {
+  background-image: linear-gradient(
+      45deg,
+      rgba(0, 0, 0, 0.1) 25%,
+      transparent 0
+    ),
+    linear-gradient(-45deg, rgba(0, 0, 0, 0.1) 25%, transparent 0),
+    linear-gradient(45deg, transparent 75%, rgba(0, 0, 0, 0.1) 0),
+    linear-gradient(-45deg, transparent 75%, rgba(0, 0, 0, 0.1) 0);
+  background-position: 0 0, 0 5px, 5px -5px, -5px 0;
+  background-size: 10px 10px;
+  background-clip: padding-box; // 背景裁剪到仅占据border以内的区域
+}
+```
