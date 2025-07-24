@@ -106,6 +106,8 @@ return (
 
 
 ## 4.渲染
+
+### 1.步骤
 - 步骤一：**触发**一次渲染
   - 组件初次渲染
   - 组件（或者其祖先之一）的状态发生改变
@@ -115,6 +117,64 @@ return (
 - 步骤三：**提交**到 DOM 上
   - 对于初次渲染，React 会使用 appendChild() DOM API 将其创建的所有 DOM 节点放在屏幕上
   - 对于重渲染，React 将应用最少的必要操作（在渲染时计算！），以使得 DOM 与最新的渲染输出相互匹配，只更新变化元素
+
+### 2.父子组件重渲染
+- 定义：父组件重渲染时，​默认情况下 React 会递归渲染所有子组件
+- 方式1：使用 React.memo 缓存子组件 - 对子组件的 props 进行浅比较，如果 props 未变化，则跳过渲染
+```javascript
+const Child = React.memo(({data}) => {
+  console.log("子组件渲染"); // 仅在 props 变化时打印
+  return <div>{ data }</div>;
+});
+```
+- 方式2：父组件用 useMemo 缓存子组件的 props - 避免 props 无意义的变化导致子组件重渲染
+```javascript
+const Parent = () => {
+  const [count, setCount] = useState(0);
+  const childProps = useMemo(() => ({}), []); // 缓存空 props
+  return (
+    <div>
+      <button onClick={() => setCount(count + 1)}>增加</button>
+      <Child {...childProps} /> {/* 避免因父组件渲染导致子组件渲染 */}
+    </div>
+  );
+};
+```
+- 方式3：将状态下沉到子组件 - 父组件的状态与子组件无关
+```javascript
+const Parent = () => {
+  return (
+    <div>
+      <ChildWithOwnState /> {/* 子组件自己管理状态 */}
+    </div>
+  );
+};
+
+const ChildWithOwnState = () => {
+  const [count, setCount] = useState(0); // 状态由子组件自己维护
+  return (
+    <button onClick={() => setCount(count + 1)}>增加</button>
+  );
+};
+```
+- 方式4：使用 children 或组件组合 - 通过 props.children 传递子组件，React 会跳过这部分子树的渲染检查
+```javascript
+const Parent = ({ children }) => {
+  const [count, setCount] = useState(0);
+  return (
+    <div>
+      <button onClick={() => setCount(count + 1)}>增加</button>
+      {children} {/* 子组件不会因父组件状态变化而渲染 */}
+    </div>
+  );
+};
+
+// 使用方式
+<Parent>
+  <Child /> {/* Child 不会因 Parent 的 count 变化而渲染 */}
+</Parent>
+```
+
 
 
 ## 5.props
@@ -549,12 +609,13 @@ export default function Counter() {
 - 避免冗余的 state：如果你能在渲染期间从组件的 props 或其现有的 state 变量中计算出一些信息，则不应将这些信息放入该组件的 state 中。
 - 避免重复的 state：当同一数据在多个 state 变量之间或在多个嵌套对象中重复时，这会很难保持它们同步。应尽可能减少重复。
 - 避免深度嵌套的 state：深度分层的 state 更新起来不是很方便。如果可能的话，最好以扁平化方式构建 state。
-- 不要用state镜像props：镜像props时，props发生改变时镜像的state变量并不会更新
+- 不要用state镜像props：镜像props时，props发生改变时镜像的state变量并不会更新（复杂需求情况下除外）
 
 ### 4.保留与重置
 - UI树：组件仍在UI树中则state状态保留；从UI树中移除，则state状态被重置
+- 相同位置：若在相同位置切换不同prop的相同组件，该组件仅发生prop切换，不发生state的重置
 - 子组件：当在相同位置渲染不同组件，组件的整个子树都被重置
-- 相同位置重置state：组件绑定唯一的key，切换组件时重置state
+- 相同位置重置state：相同位置的相同组件各自绑定唯一的key，切换组件时重置state
 - 为被移除的组件保留state：状态提升至父组件保存/CSS隐藏/localStorage保存
 
 
@@ -805,7 +866,7 @@ const initialTasks = [
 
 ## 9.ref
 
-### 1.ref引用值
+### 1.ref基础概念
 - 特性
   - 在渲染过程之外修改和更新值，如事件处理程序
   - 值改动不会触发重新渲染
@@ -814,7 +875,14 @@ const initialTasks = [
   - 存储timeout ID
   - 存储和操作DOM元素
   - 存储不需要被用来计算 JSX 的其他对象
-- 存储timeout ID
+- 元素ref属性接受两种形式
+  - 回调函数形式：组件挂载时调用该函数并传入DOM元素作为函数参数
+  - ref对象形式：将DOM元素赋值给`ref.current`
+- 子组件对ref作为prop的处理
+  - 直接将ref绑定到组件内部元素上，父组件中控制子组件内部的元素
+  - 将内部方法、属性通过ref变量主动暴露出去（与vue默认全部暴露不同）
+
+### 2.存储timeout ID
 
 ```javascript
 import { useState, useRef } from 'react';
@@ -857,9 +925,7 @@ export default function Stopwatch() {
 }
 ```
 
-### 2.存储DOM元素
-- 单个DOM元素设置状态
-
+### 3.存储当前组件单个DOM元素
 ```javascript
 import { useRef } from 'react';
 
@@ -882,7 +948,7 @@ export default function Form() {
 
 ```
 
-- 管理ref列表
+### 4.存储当前组件DOM元素列表
 
 ```javascript
 import { useRef, useState } from "react";
@@ -952,7 +1018,7 @@ function setupCatList() {
 
 ```
 
-- 访问子组件的DOM节点
+### 5.访问子组件的DOM节点
 
 ```javascript
 // 通过prop的方式传递ref，子组件DOM节点绑定传递过来的ref
@@ -960,12 +1026,19 @@ import { useRef, useImperativeHandle } from "react";
 
 function MyInput({ ref }) {
   const realInputRef = useRef(null);
-  // useImperativeHandle可以控制暴露的调用方法
+  const focus = () => {
+    realInputRef.current.focus()
+  }
+  // useImperativeHandle可以控制暴露的调用方法（React19版本之前）
   useImperativeHandle(ref, () => ({
-    focus() {
-      realInputRef.current.focus();
-    },
+    focus: foucs
   }));
+  // 直接传递或赋值ref（React19版本）
+  if (typeof ref === "function") {
+    ref({ focus: focus });
+  } else if (ref) {
+    ref.current = { focus: focus };
+  }
   return <input ref={realInputRef} />;
 };
 
@@ -986,7 +1059,7 @@ export default function Form() {
 
 ```
 
-- 强制同步更新后获取最新的DOM节点
+### 6.强制同步更新后获取最新的DOM节点
 
 ```javascript
 import { useState, useRef } from 'react';
@@ -1041,7 +1114,7 @@ for (let i = 0; i < 20; i++) {
 
 ```
 
-- 避免更改由 React 管理的 DOM 节点
+### 7.避免更改由 React 管理的 DOM 节点
 
 ```javascript
 // 删除DOM元素后尝试使用 setState 再次显示它会导致崩溃
@@ -1078,7 +1151,9 @@ export default function Counter() {
 - 特性：相比渲染不是纯粹的计算过程，相比事件处理没有专门的事件去触发
 - 使用情境：暂时“跳出” React并与一些外部系统进行同步。这包括浏览器 API、第三方小部件，以及网络等等
 - 调用时机：渲染结束后执行
-- 开发环境&生产环境：开发环境下严格模式会故意卸载并重新挂载组件，以帮助开发者发现副作用问题；而生产环境不会
+- 严格模式：
+  - 开发环境：故意卸载并重新挂载组件，以帮助开发者发现副作用问题（初次挂载以及重新渲染时都会渲染2次）
+  - 生产环境：无作用
 - 不适用
   - 初始化应用
   - 与事件处理相关
@@ -1217,6 +1292,7 @@ useQuery('todos', fetchTodos, {
   retryDelay: 1000, // 每次重试间隔1秒
 });
 ```
+- 支持同时发起多个独立请求，无需等待父组件数据返回后再触发子组件请求
 - 数据预加载与乐观更新：在用户需要数据前提前加载（如悬停按钮时）/ 先假设请求成功更新 UI，失败后回滚
 
 ```javascript
@@ -1239,9 +1315,14 @@ const mutation = useMutation(updateTodo, {
 });
 ```
 
-### 2.核心API
-
-- useQuery：用于获取数据
+### 2.useQuery
+- 作用：获取数据
+- 配置项参数
+  - queryKey：绑定数组，根据数组内各元素不同参数区分缓存区块，若为对象需要转化为JSON字符串否则无法深度对比
+  - enabled：渲染时是否自动获取数据，通过该参数可设置需要顺序执行的请求，避免嵌套Promise
+  - cacheTime(4.0) / gcTime(5.0)：控制数据何时被完全清除​（从内存中删除），默认5分钟/1小时
+  - staleTime：控制数据何时被视为"过时"（需要后台更新），默认0；即使过时，若有缓存数据仍取缓存数据，但仍会进行接口更新，更新完成后将缓存数据替换为接口数据
+- 4.0版本
 
 ```javascript
 const { data, isLoading, isError, error } = useQuery(
@@ -1250,14 +1331,59 @@ const { data, isLoading, isError, error } = useQuery(
   options          // 配置项（缓存时间、重试策略等）
 );
 ```
-
-- useMutation：用于修改数据（POST/PUT/DELETE）
+- 5.0版本
 
 ```javascript
-const mutation = useMutation(postData, {
+const { data: tableList } = useQuery({
+  queryKey: ['fetchTable', params],
+  queryFn: async() => {
+    /* 请求 */
+  },
+  gcTime: 5000,
+  select: (data) => data.map(item => ({
+    ...item,
+    key: item.id
+  }))
+})
+```
+
+
+### 3.useMutation
+- 作用：修改数据
+- 乐观更新适用场景：高频交互（点赞收藏等）、网络延迟明显、成功率高、可逆操作
+- 乐观更新不适用场景：关键金融操作、依赖后端计算、成功率低（复杂校验）、不可逆操作
+- 当前表格更新需保持固定条数：
+  - 放弃乐观更新而直接刷新当前分页缓存
+  - 若其他分页也存在缓存则需同步刷新，否则切换分页可能获取缓存数据
+  - 为避免页面在缓存数据与接口数据之间跳动，需要使用refetchQueries强制更新
+
+```javascript
+const mutation = useMutation({
+  mutationFn: (id: number) => deleteTableItem({ id: id })
+  // 在执行mutation前更新本地缓存，用于乐观更新
+  onMutate: async (id) => {
+    // 取消所有正在进行的'tableData'查询，避免覆盖我们的乐观更新
+    await queryClient.cancelQueries('tableData');
+    
+    // 保存当前数据，以便回滚
+    const previousData = queryClient.getQueryData('tableData');
+    
+    // 乐观更新：从缓存中移除被删除的项
+    queryClient.setQueryData('tableData', old => 
+      old.filter(item => item.id !== id)
+    );
+    
+    // 返回上下文对象，用于错误时回滚
+    return { previousData };
+  },
+  
+  // 如果失败，回滚到之前的状态
+  onError: (err, id, context) => {
+    queryClient.setQueryData('tableData', context.previousData);
+  },
   onSuccess: () => {
     // 数据提交成功后，刷新缓存
-    queryClient.invalidateQueries('todos');
+    queryClient.invalidateQueries({ queryKey: ['tableData']});
   },
 });
 
@@ -1265,12 +1391,41 @@ const mutation = useMutation(postData, {
 mutation.mutate(newData);
 ```
 
-- QueryClient：全局缓存管理
+### 4.QueryClient
+- 作用：全局缓存管理
+- 核心函数
+  - fetchQuery：参数与useQuery类似，主动获取数据放入缓存数据当中，返回Promise，不会触发重新渲染
+  - setQueryData：手动更新缓存中的数据，不发起网络请求
+  - refetchQueries：强制匹配的查询重新从服务器获取数据
+  - invalidateQueries：将匹配的查询标记为过时，遵循智能重新获取策略，常用于乐观更新
 
 ```javascript
 import { QueryClient, QueryClientProvider } from 'react-query';
 
 const queryClient = new QueryClient();
+
+const data = await queryClient.fetchQuery({
+  queryKey: ['todos'],
+  queryFn: fetchTodoList,
+  // v5 新增的选项
+  staleTime: 60_000,
+});
+
+queryClient.setQueryData(
+  ['todo', todoId],
+  (oldData) => oldData ? { ...oldData, status: 'done' } : undefined
+);
+
+await queryClient.refetchQueries({
+  predicate: query => 
+    query.queryKey[0] === 'todos' && 
+    query.state.status === 'error'
+});
+
+queryClient.invalidateQueries({
+  queryKey: ['todos']
+});
+
 
 function App() {
   return (
@@ -1281,7 +1436,7 @@ function App() {
 }
 ```
 
-### 3.完整示例
+### 5.完整示例
 
 ```javascript
 import { useQuery, useMutation, QueryClient, QueryClientProvider } from 'react-query';
@@ -1347,7 +1502,11 @@ function App() {
 ```
 
 ## 12.关键Hook
-- useMemo：用于缓存需要大量计算的结果，避免每次渲染都进行计算，只有依赖项更新时重新计算
+- useMemo
+  - ​避免重复计算：当依赖项未变化时，避免在每次渲染时重新计算复杂值
+  - 引用稳定性​：当依赖项未变化时，保持返回值的引用不变（useState每次修改时即时值相同也会创建新引用）
+  - 无需额外的状态管理：相比于useState无需判断依赖项变化手动调用setState更新数据
+  - 无需额外重新渲染：相比于useState需要在setState后重新渲染才能拿到最新的值，useMemo当次渲染即能拿到最新值
 
 ```javascript
 import { useMemo, useState } from 'react';
@@ -1359,23 +1518,62 @@ function TodoList({ todos, filter }) {
   // ...
 }
 ```
-- useEffectEvent：类似于事件处理函数，但在Effect中触发，能从依赖项中分割出不需要响应性的变量。永远不要把他们传给其他的组件或者 Hook
+- useCallback
+  - 用途：直接定义函数时，每次渲染都会创建新的函数引用，useCallback在依赖项不变时，返回相同的函数引用
+  - 适用情景：作为 React.memo 子组件的 props、依赖其他 Hook 的函数​（如 useEffect）
 
 ```javascript
-const onConnected = useEffectEvent(() => {
-    showNotification('Connected!', theme);
-  });
+const Parent = ({ externalId }) => {
+  const [data, setData] = useState();
 
-  useEffect(() => {
-    const connection = createConnection(serverUrl, roomId);
-    connection.on('connected', () => {
-      onConnected();
-    });
-    connection.connect();
-    return () => connection.disconnect();
-  }, [roomId]);
+  // 依赖 externalId 和 data
+  const handleSubmit = useCallback(() => {
+    sendData(externalId, data);
+  }, [externalId, data]); // ✅ 依赖项变化时才更新引用
+
+  // 依赖其他 Hook 的函数
+  const fetchData = useCallback(async () => {
+    const res = await fetch(url);
+  }, [url]); // 确保 useEffect 依赖稳定
+
+  useEffect(() => { fetchData(); }, [fetchData]);
+
+  return <Child onSubmit={handleSubmit} />;
+};
 ```
-- memo：对传入的prop进行浅比较，基本类型直接比较值，引用类型比较引用地址，不变时不重新渲染
+- useEffectEvent
+  - 用途：直接定义函数时，每次渲染都会创建新的函数引用，用于在Effect中触发并绑定依赖项时会导致Effect频繁触发。useEffectEvent能将函数从Effect依赖项中分割出不需要响应性的函数变量
+  - 特性：实验性API，不适合用于生产
+  - 相比于useCallBack：无需绑定依赖项，引用永远不变，useCallBack可用于逻辑渲染
+  - 适用情景：事件监听与副作用清理、定时器/异步操作中访问最新状态
+
+```javascript
+const onScroll = useEffectEvent(() => {
+  console.log(window.scrollY);
+});
+
+useEffect(() => {
+  window.addEventListener('scroll', onScroll);
+  return () => window.removeEventListener('scroll', onScroll);
+}, []); // 无需依赖 onScroll
+
+// 实验性API的替代方案
+const [count, setCount] = useState(0);
+const latestHandler = useRef();
+
+latestHandler.current = () => {
+  console.log(count);
+};
+
+useEffect(() => {
+  const handler = () => latestHandler.current();
+  window.addEventListener('click', handler);
+  return () => window.removeEventListener('click', handler);
+}, []);
+```
+- memo：
+  - 用途：对传入的prop进行浅比较，基本类型直接比较值，引用类型比较引用地址，不变时不重新渲染
+  - 适用情景：大型列表项（如渲染 1000+ 行的列表子项）​、高频交互组件​（如实时拖拽、动画组件）
 
 ```javascript
 import React, { memo } from 'react';
@@ -1778,6 +1976,11 @@ import { RouterProvider } from "react-router-dom";
 ```
 
 ### 3.设置错误路由对应页面errorElement
+- 错误路由适用范围
+  - 组件抛出错误
+  - loader/action 函数抛出错误
+  - ​未匹配的路由
+  - 冒泡机制：子路由未定义errorElement会冒泡到父级路由的errorElement
 - 设置errorElement
 
 ```javascript
@@ -1846,11 +2049,15 @@ const router = createBrowserRouter([
     path: "/",
     element: <App/>,
     children: [
-    { index: true, element: <Index /> }, // 当用户位于父路由时匹配组件
-    {
-      path: '/counter',
-      element: <Counter/>
-    }]
+      {
+        index: true,
+        element: <Index />
+      }, // 当用户位于父路由时匹配组件
+      {
+        path: '/counter',
+        element: <Counter/>
+      }
+    ]
   },
 ]);
 
@@ -1865,12 +2072,25 @@ const router = createBrowserRouter([
 
 
 ### 5.路由加载loader
+|区别|loader   | 组件内部调用   |
+| -- | -- | -- |
+| 调用时机   | 仅在路由导航时触发   | 通常在 useEffect 或事件处理中触发   |
+| 调用频率   | ​不会因组件重新渲染而重复调用   |  容易因组件生命周期导致冗余请求  |
+| 数据预加载与并行性   | 通过内置功能或API实现   |  需手动实现，逻辑更复杂  |
+|数据访问与共享|同一路由下的所有组件均可通过 useLoaderData() 访问 loader 数据|需通过状态管理（如 useState、Redux）或 Context 共享数据|
+|错误处理|可通过 errorElement 捕获 loader 抛出的错误|错误处理需手动实现（如 try/catch 或错误边界）|
+|服务器渲染|支持|不支持|
+|代码关注点分离|将数据获取与组件解耦|数据逻辑与 UI 耦合|
+|适用情景|页面初始数据|组件特有的交互数据|
+
 - 设置对应路由进入后执行的加载函数：可用于接口获取路由列表相关
 
 ```javascript
 import { getContacts } from "../contacts";
 
-export async function loader() {
+export async function loader({params}) {
+  // 可通过`params`获取路由上携带的参数如`contactId`
+  console.log(params.contactId)
   const contacts = await getContacts();
   // 加载不到抛出错误会直接渲染错误路径
   if (!contact) {
@@ -1883,8 +2103,6 @@ export async function loader() {
 }
 
 ```
-
-- 获取参数：绑定loader的加载函数可通过`params`获取路由上携带的参数如`contactId`
 
 - 路由配置中绑定loader
 
@@ -1899,6 +2117,7 @@ const router = createBrowserRouter([
     loader: rootLoader,
     children: [
       {
+        // 可设置path: "contacts/*"兼容无参数的情况，同时要调整loader中参数获取方式
         path: "contacts/:contactId",
         element: <Contact />,
       },
@@ -1923,40 +2142,14 @@ export default function Root() {
   return (
     <>
       <div id="sidebar">
-        <h1>React Router Contacts</h1>
-        {/* other code */}
-
-        <nav>
-          {contacts.length ? (
-            <ul>
-              {contacts.map((contact) => (
-                <li key={contact.id}>
-                  <Link to={`contacts/${contact.id}`}>
-                    {contact.first || contact.last ? (
-                      <>
-                        {contact.first} {contact.last}
-                      </>
-                    ) : (
-                      <i>No Name</i>
-                    )}{" "}
-                    {contact.favorite && <span>★</span>}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p>
-              <i>No contacts</i>
-            </p>
-          )}
-        </nav>
-
-        {/* other code */}
+        { contacts }
       </div>
     </>
   );
 }
 ```
+
+
 
 ### 6.路由操作action
 - 组件中配置`<Form>`：元素触发提交事件
@@ -2284,3 +2477,41 @@ function Favorite({ contact }) {
   );
 }
 ```
+
+## 15.Ant-design
+### 1.Form组件表单值未重置
+- 问题：props值改变，Form组件初始值未对应重置
+- 原因：Form组件绑定initialValues后，即使对应绑定的值发生改变也不会对应重置
+- 解决：通过useEffect监听值变化后手动对表单重置
+```javascript
+// 根据弹窗显隐与传入值决定是否对表单实例设值
+useEffect(() => {
+  if (isModalOpen) {
+    form.setFieldsValue(detail);
+  }
+}, [detail, isModalOpen, form])
+```
+
+### 2.Form组件表单值字段缺失
+- 问题：onValuesChange绑定的handleChange函数回调的表单字段相比初始化有缺失
+- 原因：Form组件只会跟踪已定义`<Form.Item>`的字段
+- 解决：将需要的表单字段写入隐藏的`<Form.Item>`
+```javascript
+<Form.Item<FieldType>
+  name="id"
+  hidden
+>
+  <Input type="hidden" />
+</Form.Item>
+```
+
+
+## 16.性能优化
+- 原则：先写无优化代码，明显出现性能问题时再去选择优化
+- 原因：优化可能起负作用
+  - 如浅比较 props 和 state 可能带来性能损耗（尤其是大型对象）
+  - useMemo / useCallback 本身有开销
+- 需要优化场景
+  - 子组件渲染成本高​（如复杂计算、大量 DOM 节点）
+  - 子组件在列表中被频繁更新​（如长列表中的每一项）
+  - 子组件依赖的 props 未变化但父组件频繁渲染
