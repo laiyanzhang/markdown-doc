@@ -553,48 +553,49 @@ for (var i = 1; i <= 3; i++) {
 
 
 ## 8.canvas绘图
-- HTML：canvas元素引入，设置相应属性
-- 获得绘图上下文：元素.getContext("2d")
-- 导出绘制图像：元素.toDataURL("image/png")，获得图像的URI
-- 2D上下文：基于context对象的操作
-  - 填充和描边：fillStyle、strokeStyle，值可为颜色、渐变或图像
-  - 绘制矩形：
-     - 方法：fillRect()、strokeRect()、clearRect():填充矩形、描边矩形、消除矩形
-     - 参数：矩形x坐标、矩形y坐标、矩形宽度、矩形高度
-  - 绘制路径：
-     - 直线：lineTo(x,y)、moveTo(x,y)
-     - 弧线：arc(x,y,radius,startAngle,endAngle,counterclockwise)，最后参数为false为顺时针
-  - 绘制文本：
-     - 属性：context.font/textAlign/textBaseline
-     - 方法：context.fillText()/strokeText()
-     - 参数：字符串、x坐标、y坐标、最大像素宽度
-  - 变换：
-     - 方法：rotate()、scale()、translate()：旋转、缩放、移动原点
-  - 设置：保存的是设置和变换而不是内容
-     - 方法：save()、restore()：保存当前所有配置，返回上次所有配置
-  - 绘制图像：
-     - 方法：drawImage()
-     - 参数：图像，源图像坐标大小，目标图像坐标大小
-  - 阴影：
-     - 属性：shadowColor、shadowOffsetX、shadowOffsetY、shadowBlur
-  - 渐变：
-     - createLinearGradient()：创建线性渐变对象，四个参数对应起始坐标
-     - createRadialGradient()：创建径向渐变对象，六个参数对应起始坐标及半径
-     - addColorStop():为渐变对象创建对应区间节点及颜色
-     - fillStyle:设置为渐变对象，即可对图形进行渐变设置
-     - 图形与渐变的坐标要匹配才能实现
-  - 模式：重复的图形进行填充或描边
-     - createPattern():参数为img元素和重复的形式
-     - fillStyle：设置为模式对象即可实现
-  - 使用图像数据：
-     - getImageData()：四个参数对应坐标及大小
-     - ImageData：得到的实例中有三个属性，宽度高度以及data数组
-     - data：4个元素表示红绿蓝和透明度，分别表示1个像素
-     - putImageData():参数为data,0,0，显示修改结果
-  - 合成：
-     - globalAlpha：设置全局透明度
-     - globalCompositionOperation：设置合成方式
-- WebGL：3D上下文
+  
+### 1.2D上下文：基于context对象的操作
+- 获得绘图上下文：`context = canvas.getContext("2d")`
+- 填充和描边：`fillStyle()``strokeStyle()`参数可为颜色、渐变或图像
+- 绘制矩形：
+  - 方法：`fillRect()``strokeRect()``clearRect()`填充矩形、描边矩形、消除矩形
+  - 参数：矩形x坐标、矩形y坐标、矩形宽度、矩形高度
+- 绘制路径：
+  - 直线：`lineTo(x,y)``moveTo(x,y)`
+  - 弧线：`arc(x,y,radius,startAngle,endAngle,counterclockwise)`最后参数为false为顺时针
+- 绘制文本：
+  - 属性：`font / textAlign / textBaseline`
+  - 方法：`fillText() / strokeText()`
+  - 参数：字符串、x坐标、y坐标、最大像素宽度
+- 变换：
+  - 方法：`rotate()``scale()``translate()`旋转、缩放、移动原点
+- 设置：保存的是设置和变换而不是内容
+  - 方法：`save()``restore()`保存当前所有配置，返回上次所有配置
+- 绘制图像：
+  - 方法：`drawImage()`
+  - 参数：图像，源图像坐标大小，目标图像坐标大小
+- 阴影：
+  - 属性：`shadowColor``shadowOffsetX``shadowOffsetY``shadowBlur`
+- 渐变：
+  - `createLinearGradient()`：创建线性渐变对象，四个参数对应起始坐标
+  - `createRadialGradient()`：创建径向渐变对象，六个参数对应起始坐标及半径
+  - `addColorStop()`：为渐变对象创建对应区间节点及颜色
+  - `fillStyle`：设置为渐变对象，即可对图形进行渐变设置
+  - 图形与渐变的坐标要匹配才能实现
+- 模式：重复的图形进行填充或描边
+  - `createPattern()`：参数为img元素和重复的形式
+  - `fillStyle`：设置为模式对象即可实现
+- 使用图像数据：
+  - `getImageData()`：四个参数对应坐标及大小（获取数据为副本，修改不生效）
+  - `getImageData(0, 0, width, height, cachedImageData)`：`cachedImageData`更新缓存的imageData对象，避免频繁分配imageData对象的内存造成垃圾回收压力
+  - `imageData`：得到的实例中有三个属性，宽度高度以及data数组
+  - `imageData.data`：4个元素表示红绿蓝和透明度，分别表示1个像素
+  - `putImageData(data,0,0)`：将修改结果更新，适合像素级更新
+- 合成：
+  - `globalAlpha`：设置全局透明度
+  - `globalCompositionOperation`：设置合成方式
+
+### 2.WebGL：3D上下文
 
 ## 9.HTML5脚本编程
 - 跨文档消息传递：

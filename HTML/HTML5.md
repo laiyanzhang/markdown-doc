@@ -182,34 +182,78 @@ function showError(error)
 
 
 ## 11.web worker
-- web worker：运行在后台的 JavaScript，独立于其他脚本，不会影响页面的性能
-- 定义：内部执行计算脚本，无法访问js对象，通过postmessage传递数据
-```
-var i=0;
+### 1.基础概念
+- 概念：运行在后台的 JavaScript，独立于其他脚本，用于处理需要大量计算的耗时任务，避免阻塞主线程导致页面卡顿
+- 判断是否使用标准：运算超过16ms（一帧的时间）；用户操作后出现明显卡顿或延迟
+- 适用情境
+  - 大数据处理​：处理大型数组、矩阵运算、大数据集分析
+  - 图像/视频处理​：像素级操作、滤镜应用、图像识别
+  - 复杂算法​：加密解密、压缩解压、机器学习推理
+  - ​长时间运行任务​：日志分析、数据排序、复杂计算
+  - 实时数据处理​：WebSocket 数据处理、传感器数据分析
+- 注意事项
+  - 数据传输​：Worker 和主线程之间通过消息传递数据，数据会被结构化克隆算法处理（类似深拷贝），大数据传输会有性能开销
+  - ​启动成本​：Worker 初始化需要50-200ms
+  - ​内存占用​：每个 Worker 都有独立的内存空间，创建过多 Worker 会增加内存消耗
+  - 生命周期​：Worker 需要显式终止`worker.terminate()` / `self.close()`，否则会持续存在，造成内存泄漏
+  - 调试​：Worker 脚本有独立的调试上下文，在开发者工具中可以单独查看
+  - 兼容性​：现代浏览器都支持 WebWorker，但在某些特殊环境（如某些移动浏览器）可能需要降级处理
 
-function timedCount()
-{
-    i=i+1;
-    postMessage(i);
-    setTimeout("timedCount()",500);
+### 2.与主线程区别
+
+|特性	|主线程 JS 代码	|WebWorker JS 代码|
+| -- | -- | -- |
+|DOM 访问	|可以访问 DOM	|不能访问 DOM|
+|全局对象	|window	|self 或 this|
+|UI 操作	|可以直接操作 UI	|不能直接操作 UI|
+|阻塞影响	|阻塞会导致页面卡顿	|不会阻塞主线程|
+|通信方式	|直接调用函数	|通过 postMessage 通信|
+|引入脚本	|直接 `<script>` 标签	|使用 `importScripts()`|
+|错误处理	|常规 try-catch	|需要通过 onerror 监听|
+|内存	|共享主线程内存	|独立内存空间|
+|Web API 支持	|支持全部 API	|有限支持 (如不支持 localStorage)|
+
+> 不可用的常用API：document、Element、alert、confirm、localStorage、sessionStorage、WebSocket
+> worker与主线程对比，worker能够并行处理数据，多worker并行时需注意 worker 数量 ≤ CPU 核心数
+
+### 3.简单示例
+```javascript
+// worker.js（定义）
+self.onmessage = function(e) {
+  if (e.data.command === 'start') {
+    // 执行耗时任务
+    const result = heavyComputation(e.data.data);
+    
+    // 返回结果
+    self.postMessage({ result: result });
+  }
+};
+
+function heavyComputation(data) {
+  // 这里执行耗时操作
+  // ...
+  return processedData;
 }
 
-timedCount();
-```
-- 使用：通过onmessage获取脚本计算结果
-```
-w = new Worker("demo_workers.js"); // 脚本文件创建线程
-w.onmessage=function(event){
-    document.getElementById("result").innerHTML=event.data;
+// 主线程（调用）
+const worker = new Worker('worker.js');
+
+worker.postMessage({ command: 'start', data: someData });
+
+worker.onmessage = function(e) {
+  console.log('Worker said: ', e.data);
 };
-w.terminate(); // 终止线程，释放资源
+
+worker.onerror = function(e) {
+  console.error('Worker error: ', e);
+};
 ```
 
 
 ## 12.SSE
 - SSE：网页自动获取来自服务器的更新，适用于服务器单向高频的数据发送
 - 使用：接受服务器对应url传输的数据
-```
+```javascript
 var source=new EventSource("demo_sse.php");
 source.onmessage=function(event)
 {
@@ -219,7 +263,7 @@ source.onmessage=function(event)
 
 ## 13.WebSocket
 - 定义：客户端与服务端全双工通信
-```
+```javascript
 var ws = new WebSocket("ws://localhost:9998/echo");
                 
 ws.onopen = function()  // 连接建立时触发

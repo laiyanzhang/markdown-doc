@@ -1587,6 +1587,8 @@ const Item = memo(({ item }) => {
 - 自定义Hook：共享的只是状态逻辑而不是状态本身。对 Hook 的每个调用完全独立于对同一个 Hook 的其他调用
 
 
+
+
 ## 13.Redux Toolkit
 
 ### 1.对比原生Redux 
@@ -1790,7 +1792,7 @@ export function Counter() {
 ### 4.异步逻辑与数据请求
 - 使用 createAsyncThunk 请求数据：过程中实际会触发两个action`counter/fetchCount/pending`和`counter/fetchCount/fulfilled`
 
-```javscript
+```javascript
 export const incrementAsync = createAsyncThunk(
   'counter/fetchCount',
   async (amount) => {

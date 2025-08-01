@@ -153,6 +153,8 @@
     <component :is="chooseComponent"></component>
 </keep-alive>
 ```
+- 缓存内容：组件的 VNode（虚拟DOM节点）、组件实例
+- 缓存位置：存储在`keep-alive`自身内存中
 - props：keep-alive支持配置的属性作为prop传入
 ```javascript
 props: {
@@ -255,3 +257,17 @@ function pruneCacheEntry (cache,key,keys,current) {
   remove(keys, key)
 }
 ```
+
+### 1.缓存页面(A) → 非缓存页面(B)
+1. 离开缓存页面(A)时
+- 触发 A.beforeDestroy
+- 触发 A.destroyed
+- 但 keep-alive 仍保留着A的组件实例和状态
+2. ​进入非缓存页面(B)时​
+- B正常创建和挂载
+- A的DOM被销毁，但实例被 keep-alive 保留在内存中
+3. ​返回缓存页面(A)时​：
+- 创建新的A组件实例（触发created）
+- 但 keep-alive 会用缓存的组件状态覆盖新实例的状态
+- 因此看起来数据被保留了
+4. 总结：​在 activated 中可以手动重置数据，在 deactivated 中可做标记
