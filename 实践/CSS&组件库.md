@@ -44,47 +44,63 @@
   - 解决：气泡单独作为body子节点，class应在全局定义
 
 ## 3.antd异常
-- a-select：可选项异常
-  - 问题：清空选中项却未清空搜索值，造成可选项未及时更新
-  - 解决：在清空选中项处理函数中手动更新可选项
-- a-tree：无法正常折叠
+### 1.tree
+- 无法正常折叠
   - 问题：设置auto-expand-parent="true"时，点击子节点的情况下无法折叠父节点
   - 解决：true时折叠父节点的同时需要同时清空子节点，false时则只需清除父节点
-- a-tree：渲染为空
+- 渲染为空
   - 问题：当数据来源为异步加载时，树开始渲染为空
   - 解决：树v-if绑定数据长度，当有数据的时候才渲染
-- a-tree：default-expand-all失效
+- default-expand-all失效
   - 问题：异步获取数据，初始化时为空导致无法展开
   - 解决：树v-if绑定数据长度，当有数据的时候才渲染
-- a-select/a-tree-select：placeholder失效
-  - 问题：v-model绑定的value设置‘’
+
+### 2.select
+- 可选项异常
+  - 问题：清空选中项却未清空搜索值，造成可选项未及时更新
+  - 解决：在清空选中项处理函数中手动更新可选项
+- placeholder失效
+  - 问题：v-model绑定的value设置''
   - 解决：v-model绑定的value设置为undefined
-- a-popover：设置弹窗样式
-  - 问题：直接赋值class不生效
-  - 解决：overlayClassName="myPopClass"绑定对应的class，需要在根作用域定义样式
-- a-tooltip：设置文本提示框样式
-  - 问题：直接赋值class不生效
-  - 解决：overlayClassName="myTooltipClass"绑定对应的class，需要在根作用域定义样式
-- a-modal：关闭按钮不奏效
-  - 问题：v-model绑定的值为prop时，触发事件直接更新prop导致报错
-  - 解决：v-model改为v-bind
-- a-select/a-tree-select：未按中文搜索
+- 未按中文搜索
   - 问题：在设置自定义字段的情况下，未按照正确值进行搜索
-  - 解决：optionFilterProp/treeNodeFilterProp绑定对应的自定义字段
-- a-select-option: 警告未引入
+  - 解决：`optionFilterProp / treeNodeFilterProp`绑定对应的自定义字段
+- 警告未引入`a-select-option`
   - 问题：按需引入失败
   - 解决：`VueApp.component('a-select-option', Select.Option)`
-- a-modal：弹窗内嵌表单，再次打开恢复原始值（destroyOnClose + resetFields）
-  - destroyOnClose：关闭弹窗时销毁子元素
-  1、需要消除的值在modal层做处理（修改值），关闭弹窗时不会消除当前的值
-  2、需要消除的值在modal下的子组件中做处理（修改值），关闭弹窗时会消除当前的值
-  - formRef.value.resetFields()：重置表单内容以及校验规则
-  1、重置的内容是表单mounted周期结束的值，第一次编辑时传入值后再执行mounted
-  2、再次编辑时子元素是销毁后新建的，因此重新执行mounted周期，关闭弹窗时重置内容重置的是再次编辑时传入值
-- a-divider：设置边距
+
+### 3.modal
+- 绑定的取消事件中执行跳转页面，触发后页面跳转但弹窗未关闭
+  - 问题：先执行的页面跳转导致关闭弹窗事件未成功回调
+  - 解决：绑定事件中返回promise回调，先执行回调再跳转页面`return new Promise(resolve => { resolve(); that.goBack() })`
+- 关闭按钮不生效
+  - 问题：v-model绑定的值为prop时，触发事件直接更新prop导致报错
+  - 解决：v-model改为v-bind
+- 弹窗内嵌表单，再次打开恢复原始值
+  - `destroyOnClose`：关闭弹窗时销毁子元素
+     - 需要消除的值在modal层做处理（修改值），关闭弹窗时不会消除当前的值
+     - 需要消除的值在modal下的子组件中做处理（修改值），关闭弹窗时会消除当前的值
+  - `formRef.value.resetFields()`：重置表单内容以及校验规则
+     - 重置的内容是表单mounted周期结束的值，第一次编辑时传入值后再执行mounted
+     - 再次编辑时子元素是销毁后新建的，因此重新执行mounted周期，关闭弹窗时重置内容重置的是再次编辑时传入值
+
+### 4.popover
+- 设置弹窗样式失效
+  - 问题：直接赋值class不生效
+  - 解决：overlayClassName="myPopClass"绑定对应的class，需要在根作用域定义样式
+
+### 5.tooltip
+- 设置文本提示框样式不生效
+  - 问题：直接赋值class不生效
+  - 解决：overlayClassName="myTooltipClass"绑定对应的class，需要在根作用域定义样式
+
+### 6.divider
+- 设置边距
   - 问题：单独使用margin、padding无法设置分割线距离两边的边距
   - 解决：`width: auto; margin: 0 12px; min-width: 0;`
-- a-drawer：自定义挂载父节点不成功
+
+### 7.drawer
+- 自定义挂载父节点不成功
   - 问题：drawer与父节点样式不正确
   - 解决：drawer：`position: absolute`；父节点：`position: relative`
 

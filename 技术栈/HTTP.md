@@ -204,25 +204,32 @@ GET 方法主要用于获取信息。而 POST 方法主要用于更新数据。
 
 
 ## 7.http头部信息与缓存
+### 1.基础概念
 - 响应头
   - Expires：过期时间(绝对时间)，浏览器再次发送请求前检查是否超过该时间，0或-1为不缓存
-  - Cache-control：(http1.1)
+  - Cache-Control：优先级高于Expires(http1.1)
      - public：无条件缓存响应（仅响应头）
      - private：针对单个用户缓存响应（仅响应头）
      - no-cache：回服务器校验，未被改则调用缓存
      - no-store：任何情况下都不被缓存
-     - max-age(相对时间)：max-age优先级比Expires高
+     - max-age(相对时间)：以服务器响应时间为起点计算缓存时间
   - Pragma: no-cache，浏览器不要缓存网页(http1.0)
   - Last-Modified：最后一次修改时间
   - Etag：被请求变量的实体标记，优先级高于Last-Modified
 - 请求头
-  - Cache-control
+  - Cache-Control：同上
   - If-Modified-Since：值为Last-Modified，发送给服务端对比时间，选择返回200或304
   - If-None-Match：值为Etag，发送给服务端对比实体标记，选择返回200或304
-- 页面访问缓存
-1.判断是否有缓存，若有缓存判断是否过期
-2.未过期则直接读取，过期则发送If-Modified-Since、If-None-Match判断，后者优先级更高
-3.若服务器决策有更新则返回200以及新资源；没有更新则返回304并从缓存中读取
+
+### 2.页面访问缓存
+- 响应头中存在Expires / Cache-Control
+  - 判断是否有缓存，若有缓存判断是否过期，未过期则直接读取缓存
+  - 过期则发送If-Modified-Since、If-None-Match判断，没有更新则服务器返回304通知浏览器从缓存中读取
+  - 若服务器决策有更新则返回200以及新资源，浏览器从接口获取新资源
+- 响应头中不存在Expires / Cache-Control
+  - 启发式缓存：根据Last-Modified计算缓存时间，不同浏览器计算规则不同（Chrome默认不超过24小时），缓存时间内在缓存中直接获取
+- 触发缓存：普通刷新
+- 不触发缓存：强制刷新、重新打开页面
 
 
 ## 8.url解析到页面显示全过程

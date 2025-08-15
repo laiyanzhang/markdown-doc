@@ -544,8 +544,8 @@ new Vue({
 
 ## 14.Vue Router
 ### 1.Html配置
-- < router-link to="link" >：路由链接，对应path
-- < router-view name="可选" >：路由匹配渲染目标，对应path指向的组件
+- `<router-link to="link">`：路由链接，对应path
+- `<router-view name="可选">`：路由匹配渲染目标，对应path指向的组件
  
 
 ### 2.常规路由配置
@@ -583,13 +583,13 @@ new Vue({
 
 
 ### 5.组件调用
-- 监听路由参数变化：watch: { \$route(to, from) {} }
+- 监听路由参数变化：`watch: { $route(to, from) {} }`
 - 编程式导航：
-  - router.push():前往对应路由并可携带参数,提供完整的path或name+params
-  - router.replace():不会产生新history，而是更改history
-  - router.go():前进或后退几步
-- 访问路由器：this.\$router
-- 访问当前路由：this.\$route
+  - `router.push()`：前往对应路由并可携带参数,提供完整的path或name+params
+  - `router.replace()`：不会产生新history，而是更改history
+  - `router.go()`：前进或后退几步
+- 访问路由器：`this.$router`
+- 访问当前路由：`this.$route`（在APP.vue中创建以及挂载时获取的路由路径永远是'/'）
 
 
 ### 6.路由守卫
@@ -825,11 +825,187 @@ const asyncModalWithOptions = defineAsyncComponent({
 
 
 ## 16.API
-- Vue.extend:返回扩展实例构造器，可理解为创建子类继承Vue身上部分功能
-  - 创建vue组件Component
-  - 创建子类：let ComponentCtrl = Vue.extend({..Component})
-  - 创建实例：const modal = new ComponentCtrl({options})
-  - 挂载实例：const modalVm = modal.\$mount()
-  - 元素插入：container.appendChild(modalVm.\$el)
+### 1.创建组件实例构造器
+```javascript
+import component from './index'
 
-   
+/* Vue2 */
+let ComponentCtrl = Vue.extend(component) // 创建构造器
+
+const confirmDialogInstance = new ComponentCtrl({el: document.createElement('div')}) // 新建实例
+document.body.appendChild(confirmDialogInstance.$el) // 元素插入到body标签中
+
+const instance = new ComponentCtrl().$mount('#app') // 亦可挂载到#app对应元素或者直接空挂$mount()
+
+/* Vue3 */
+const mountPoint = document.createElement('div')
+document.body.appendChild(mountPoint) // 插入元素
+const app = createApp(component) // 创建实例
+instance = app.mount(mountPoint) // 挂载实例
+```
+
+### 2.Vue.extend
+- 定义：用于创建组件构造器的 API，定义一个可复用的组件构造函数
+- 动态创建和挂载组件：在运行时将代码动态生成组件（如弹窗、通知消息）挂载到 DOM
+
+```javascript
+// 定义弹窗组件
+const ModalConstructor = Vue.extend({
+  template: `
+    <div class="modal" v-if="visible">
+      <div class="modal-content">
+        <slot></slot>
+        <button @click="close">关闭</button>
+      </div>
+    </div>
+  `,
+  data() {
+    return { visible: true };
+  },
+  methods: {
+    close() {
+      this.visible = false;
+      // 延迟销毁实例
+      setTimeout(() => this.$destroy(), 300);
+    },
+  },
+});
+
+// 动态打开弹窗
+function openModal(content) {
+  const instance = new ModalConstructor({
+    propsData: { content },
+  });
+  instance.$mount();
+  document.body.appendChild(instance.$el);
+}
+
+// 使用
+openModal('这是一个动态弹窗！');
+```
+- 开发插件或 UI 组件库
+
+```javascript
+// 定义一个通知组件
+const NotificationConstructor = Vue.extend(NotificationComponent);
+
+// 在 Vue 原型上添加全局方法
+Vue.prototype.$notify = (message) => {
+  const instance = new NotificationConstructor({
+    propsData: { message },
+  });
+  instance.$mount();
+  document.body.appendChild(instance.$el);
+};
+
+// 使用
+this.$notify('操作成功！');
+```
+- 高阶组件（HOC）：通过扩展基础组件，添加通用逻辑（如日志、权限控制）
+
+```javascript
+// 基础组件
+const BaseComponent = {
+  template: '<button @click="handleClick">{{ text }}</button>',
+  data() {
+    return { text: 'Click Me' };
+  },
+  methods: {
+    handleClick() {
+      console.log('Base click');
+    },
+  },
+};
+
+// 扩展基础组件，添加日志功能
+const LoggedButton = Vue.extend({
+  extends: BaseComponent,
+  methods: {
+    handleClick() {
+      console.log('Click logged!');
+      // 调用父类方法
+      BaseComponent.methods.handleClick.call(this);
+    },
+  },
+});
+```
+
+- 在非单文件组件环境中使用：在纯 JavaScript 文件或动态模板中定义组件
+
+```javascript
+// 纯 JS 文件中定义组件
+const DynamicList = Vue.extend({
+  template: `
+    <ul>
+      <li v-for="item in items">{{ item }}</li>
+    </ul>
+  `,
+  data() {
+    return { items: ['A', 'B', 'C'] };
+  },
+});
+
+// 挂载到某个 DOM 节点
+new DynamicList().$mount('#list-container');
+```
+
+### 3.Vue.component
+- 用途：注册组件
+- 插件化封装
+
+```javascript
+// 封装
+import Button from './components/Button.vue';
+import Header from './components/Header.vue';
+
+const GlobalComponents = {
+  install(Vue) {
+    Vue.component('Button', Button);
+    Vue.component('AppHeader', Header);
+  }
+};
+
+export default GlobalComponents;
+
+// 调用
+import Vue from 'vue';
+import App from './App.vue';
+import GlobalComponents from './plugins/global-components';
+
+Vue.use(GlobalComponents);
+
+new Vue({
+  render: h => h(App),
+}).$mount('#app');
+```
+
+- 自动化注册
+
+```javascript
+import Vue from 'vue';
+import App from './App.vue';
+
+// 自动注册 components 目录下的所有 .vue 文件
+const requireComponent = require.context(
+  './components',  // 组件目录
+  true,            // 包含子目录
+  /\.vue$/         // 匹配所有 .vue 文件
+);
+
+requireComponent.keys().forEach(fileName => {
+  const componentConfig = requireComponent(fileName);
+  
+  // 获取文件名（去除路径和后缀）
+  const componentName = fileName
+    .split('/')             // 根据路径分割成数组
+    .pop()                  // 取最后一部分（文件名）
+    .replace(/\.\w+$/, ''); // 移除文件扩展名（如 .vue）
+
+  // 全局注册组件
+  Vue.component(componentName, componentConfig.default || componentConfig);
+});
+
+new Vue({
+  render: h => h(App),
+}).$mount('#app');
+```

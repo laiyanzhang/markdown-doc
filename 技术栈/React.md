@@ -1587,34 +1587,75 @@ const Item = memo(({ item }) => {
 - 自定义Hook：共享的只是状态逻辑而不是状态本身。对 Hook 的每个调用完全独立于对同一个 Hook 的其他调用
 
 
+## 13.Redux
+### 1.术语
+- state：控制数据
+- action：描述应用程序中发生了什么的事件（原则是 action 的 type 不允许重名）
+```javascript
+const addTodoAction = {
+  type: 'todos/todoAdded', // 标明发生事件类型
+  payload: 'Buy milk' // 传递参数
+}
+```
+- reducer：事件监听器，根据接收到的 action ，更新 state （用于 createStore 的核心）
+```javascript
+const initialState = { value: 0 }
+
+function counterReducer(state = initialState, action) {
+  // 检查 reducer 是否关心这个 action
+  if (action.type === 'counter/increment') {
+    // 如果是，复制 `state`
+    return {
+      ...state,
+      // 使用新值更新 state 副本
+      value: state.value + 1
+    }
+  }
+  // 返回原来的 state 不变
+  return state
+}
+```
+- thunk：区分同步/异步，多用于异步执行action（在执行 action 之前处理异步逻辑）
+```javascript
+// 组件中可等价于 action 进行调用，如dispatch(incrementAsync(3))
+export const incrementAsync = amount => dispatch => {
+  setTimeout(() => {
+    dispatch(incrementByAmount(amount))
+  }, 1000)
+}
+```
+- store：根据传入的 reducer 创建
+```javascript
+import { createStore, combineReducers, applyMiddleware } from 'redux';
+import thunk from 'redux-thunk';
+import { counterReducer } from './counterReducer';
+
+const rootReducer = combineReducers({
+  counter: counterReducer
+});
+
+export const store = createStore(
+  rootReducer,
+  applyMiddleware(thunk) // 当有thunk时需引入中间件
+);
+```
+- 获取 store 创建后 reducer 内部抛出的state
+  - store内部：`const count = store.getState().counter.value`
+  - 组件内部：`const count = useSelector(state => state.counter.value)`
+- 触发 reducer 中定义的行为事件
+  - store内部：`store.dispatch(action)`
+  - 组件内部：`const dispatch = useDispatch(); dispatch(action)`
 
 
-## 13.Redux Toolkit
-
-### 1.对比原生Redux 
-- 代码量：
-  - 原生 Redux：手动编写 action types、action creators、reducer 和中间件配置（约 40 行）。
-  - Redux Toolkit：通过 createSlice 自动生成，代码量减少 50% 以上。
-- 不可变性：
-  - 原生 Redux：必须手动使用 { ...state } 确保不可变性。
-  - Redux Toolkit：内置 Immer，允许直接修改状态（底层自动处理不可变性）。
-- 异步处理：
-  - 原生 Redux：需手动集成 redux-thunk，异步逻辑分散。
-  - Redux Toolkit：内置 createAsyncThunk，集中管理异步生命周期。
-
-### 2.原生Redux示例
+### 2.使用示例
 
 ```javascript
-// ----------------------
-// 原生 Redux 部分
-// ----------------------
-
-// Action Types (需要手动定义)
+/* store/counter */
 const INCREMENT = 'INCREMENT';
 const DECREMENT = 'DECREMENT';
 const INCREMENT_BY_AMOUNT = 'INCREMENT_BY_AMOUNT';
 
-// Action Creators (需要手动编写)
+// Action Creators
 const increment = () => ({ type: INCREMENT });
 const decrement = () => ({ type: DECREMENT });
 const incrementByAmount = (amount) => ({
@@ -1622,9 +1663,8 @@ const incrementByAmount = (amount) => ({
   payload: amount,
 });
 
-// Reducer (需要手动处理不可变性和 action 类型)
+// Reducer
 const initialState = { value: 0 };
-
 function counterReducer(state = initialState, action) {
   switch (action.type) {
     case INCREMENT:
@@ -1638,25 +1678,42 @@ function counterReducer(state = initialState, action) {
   }
 }
 
-// 异步 Action（需手动使用中间件，如 redux-thunk）
+// Thunk（异步 Action）
 const incrementAsync = (amount) => (dispatch) => {
   setTimeout(() => {
     dispatch(incrementByAmount(amount));
   }, 1000);
 };
 
-// 创建 Store（需手动配置中间件和 DevTools）
-import { createStore, applyMiddleware } from 'redux';
-import thunk from 'redux-thunk';
 
-const store = createStore(
-  counterReducer,
-  applyMiddleware(thunk)
+/* store/index */
+import { createStore, combineReducers, applyMiddleware } from 'redux';
+import thunk from 'redux-thunk';
+import { counterReducer } from './counterReducer';
+
+const rootReducer = combineReducers({
+  counter: counterReducer
+});
+
+export const store = createStore(
+  rootReducer,
+  applyMiddleware(thunk) // 当有异步逻辑时需引入中间件
 );
 
-// ----------------------
-// React Redux 部分
-// ----------------------
+
+/* mian.tsx */
+import { Provider } from 'react-redux';
+import { store } from './store';
+function App() {
+  return (
+    <Provider store={store}>
+      <App />
+    </Provider>
+  );
+}
+
+
+/* 组件内部 */
 import { Provider, useSelector, useDispatch } from 'react-redux';
 
 function CounterComponent() {
@@ -1674,285 +1731,8 @@ function CounterComponent() {
     </div>
   );
 }
-
-// 在根组件注入 Store
-function App() {
-  return (
-    <Provider store={store}>
-      <CounterComponent />
-    </Provider>
-  );
-}
 ```
 
-### 3.使用示例
--  创建 Redux State Slice： slice 需要一个字符串名称来标识切片、一个初始 state 以及一个或多个定义了该如何更新 state 的 reducer 函数。slice 创建后 ，我们可以导出 slice 中生成的 Redux action creators 和 reducer 函数
-
-```javascript
-// features/counter/counterSlice.js
-import { createSlice } from '@reduxjs/toolkit'
-
-export const counterSlice = createSlice({
-  name: 'counter',
-  initialState: {
-    value: 0
-  },
-  reducers: {
-    increment: state => {
-      // Redux Toolkit 允许我们在 reducers 写 "可变" 逻辑。它
-      // 并不是真正的改变状态值，因为它使用了 Immer 库
-      // 可以检测到“草稿状态“ 的变化并且基于这些变化生产全新的
-      // 不可变的状态
-      state.value += 1
-    },
-    decrement: state => {
-      state.value -= 1
-    },
-    incrementByAmount: (state, action) => {
-      // action.payload为方法传入的参数
-      state.value += action.payload
-    }
-  }
-})
-// 每个 case reducer 函数会生成对应的 Action creators
-export const { increment, decrement, incrementByAmount } = counterSlice.actions
-
-export default counterSlice.reducer
-
-```
-
-- 将 Slice Reducers 添加到 Store 中：通过在 reducer 参数中定义一个字段，我们告诉 store 使用这个 slice reducer 函数来处理对该状态的所有更新
-
-```javascript
-// app/store.js
-import { configureStore } from '@reduxjs/toolkit'
-import counterReducer from '../features/counter/counterSlice'
-
-export default configureStore({
-  reducer: {
-    counter: counterReducer
-  }
-})
-```
-
-- 为 React 提供 Redux Store：引入我们刚刚创建的 store , 通过 React-Redux 的 <Provider>将 <App> 包裹起来,并将 store 作为 prop 传入
-
-```javascript
-// index.js
-import React from 'react'
-import ReactDOM from 'react-dom'
-import './index.css'
-import App from './App'
-import store from './app/store'
-import { Provider } from 'react-redux'
-
-ReactDOM.render(
-  <Provider store={store}>
-    <App />
-  </Provider>,
-  document.getElementById('root')
-)
-```
-
-- 在 React 组件中使用 Redux 状态和操作：使用 useSelector 从 store 中读取数据，使用 useDispatch dispatch actions
-
-```javascript
-// features/counter/Counter.js
-import React from 'react'
-import { useSelector, useDispatch } from 'react-redux'
-import { decrement, increment } from './counterSlice'
-import styles from './Counter.module.css'
-
-export function Counter() {
-  const count = useSelector(state => state.counter.value)
-  const dispatch = useDispatch()
-
-  return (
-    <div>
-      <div>
-        <button
-          aria-label="Increment value"
-          onClick={() => dispatch(increment())}
-        >
-          Increment
-        </button>
-        <span>{count}</span>
-        <button
-          aria-label="Decrement value"
-          onClick={() => dispatch(decrement())}
-        >
-          Decrement
-        </button>
-      </div>
-    </div>
-  )
-}
-```
-
-### 4.异步逻辑与数据请求
-- 使用 createAsyncThunk 请求数据：过程中实际会触发两个action`counter/fetchCount/pending`和`counter/fetchCount/fulfilled`
-
-```javascript
-export const incrementAsync = createAsyncThunk(
-  'counter/fetchCount',
-  async (amount) => {
-    const response = await fetchCount(amount);
-    // The value we return becomes the `fulfilled` action payload
-    return response.data;
-  }
-);
-```
-
-- 定义额外的 case reducer：针对前面产生的两个action进行处理
-
-```javascript
-extraReducers: (builder) => {
-    builder
-      .addCase(incrementAsync.pending, (state) => {
-        state.status = 'loading';
-      })
-      .addCase(incrementAsync.fulfilled, (state, action) => {
-        state.status = 'idle';
-        state.value += action.payload;
-      });
-},
-```
-
-- 处理组件级别请求成功或失败：`dispatch(incrementAsync(incrementValue).unwrap()`执行返回Promise，可用于`try-catch`捕获错误
-
-
-### 5.提升渲染性能createSelector
-- 作用：用于记忆计算结果，若依赖参数未发生变化则不会重新计算
-- 第一个参数：selector数组，返回的值作为依赖参数
-- 第二个参数：接受依赖参数用作输出计算
-
-```javascript
-import { createSlice, createAsyncThunk, createSelector } from '@reduxjs/toolkit'
-
-// omit slice logic
-
-export const selectAllPosts = state => state.posts.posts
-
-export const selectPostById = (state, postId) =>
-  state.posts.posts.find(post => post.id === postId)
-
-export const selectPostsByUser = createSelector(
-  [selectAllPosts, (state, userId) => userId],
-  (posts, userId) => posts.filter(post => post.user === userId)
-)
-
-const postsForUser = useSelector(state => selectPostsByUser(state, userId))
-```
-
-### 6.范式化数据createEntityAdapter
-- 核心作用
-  - 规范化结构：自动将数据存储为 { ids: [], entities: {} } 格式，通过 ID 快速索引。
-  - 预置 Reducer：内置 addOne、updateMany、removeAll 等常用操作。
-  - 高效 Selector：提供 selectAll、selectById 等方法，优化数据读取性能。
-  - 排序支持：可自定义实体排序规则。
-- 相比于直接存储完整数据：存储id与id对应数据，父组件仅获取id数组，子组件内根据id获取对应某份数据。如果只是修改某份数据中某个参数，则仅触发某个子组件的重新渲染。父组件若直接获取完整数据，当某个字段发生改变则会导致父组件重新渲染从而所有子组件重新渲染。
-
-```javascript
-// features/posts/postsSlice.js
-import {
-  createEntityAdapter
-  // omit other imports
-} from '@reduxjs/toolkit'
-
-const postsAdapter = createEntityAdapter({
-  sortComparer: (a, b) => b.date.localeCompare(a.date)
-})
-
-const initialState = postsAdapter.getInitialState({
-  status: 'idle',
-  error: null
-})
-
-// omit thunks
-
-const postsSlice = createSlice({
-  name: 'posts',
-  initialState,
-  reducers: {
-    reactionAdded(state, action) {
-      const { postId, reaction } = action.payload
-      const existingPost = state.entities[postId]
-      if (existingPost) {
-        existingPost.reactions[reaction]++
-      }
-    },
-    postUpdated(state, action) {
-      const { id, title, content } = action.payload
-      const existingPost = state.entities[id]
-      if (existingPost) {
-        existingPost.title = title
-        existingPost.content = content
-      }
-    }
-  },
-  extraReducers: {
-    // omit other reducers
-
-    [fetchPosts.fulfilled]: (state, action) => {
-      state.status = 'succeeded'
-      postsAdapter.upsertMany(state, action.payload)
-    },
-    [addNewPost.fulfilled]: postsAdapter.addOne
-  }
-})
-
-export const { postAdded, postUpdated, reactionAdded } = postsSlice.actions
-
-export default postsSlice.reducer
-
-// Export the customized selectors for this adapter using `getSelectors`
-export const {
-  selectAll: selectAllPosts,
-  selectById: selectPostById,
-  selectIds: selectPostIds
-  // Pass in a selector that returns the posts slice of state
-} = postsAdapter.getSelectors(state => state.posts)
-
-export const selectPostsByUser = createSelector(
-  [selectAllPosts, (state, userId) => userId],
-  (posts, userId) => posts.filter(post => post.user === userId)
-)
-
-
-
-// features/posts/PostsList.js
-
-import {
-  selectAllPosts,
-  fetchPosts,
-  selectPostIds,
-  selectPostById
-} from './postsSlice'
-
-let PostExcerpt = ({ postId }) => {
-  const post = useSelector(state => selectPostById(state, postId))
-  // omit rendering logic
-}
-
-export const PostsList = () => {
-  const dispatch = useDispatch()
-  const orderedPostIds = useSelector(selectPostIds)
-
-  // omit other selections and effects
-
-  if (postStatus === 'loading') {
-    content = <div className="loader">Loading...</div>
-  } else if (postStatus === 'succeeded') {
-    content = orderedPostIds.map(postId => (
-      <PostExcerpt key={postId} postId={postId} />
-    ))
-  } else if (postStatus === 'error') {
-    content = <div>{error}</div>
-  }
-
-  // omit other rendering
-}
-```
 
 
 ## 14.React-router
@@ -2480,7 +2260,403 @@ function Favorite({ contact }) {
 }
 ```
 
-## 15.Ant-design
+## 15.Redux Toolkit
+
+### 1.对比原生Redux 
+- 代码量：
+  - 原生 Redux：手动编写 action types、action creators、reducer 和中间件配置（约 40 行）。
+  - Redux Toolkit：通过 createSlice 自动生成，代码量减少 50% 以上。
+- 不可变性：
+  - 原生 Redux：必须手动使用 { ...state } 确保不可变性。
+  - Redux Toolkit：内置 Immer，允许直接修改状态（底层自动处理不可变性）。
+- 异步处理：
+  - 原生 Redux：需手动集成 redux-thunk，异步逻辑分散。
+  - Redux Toolkit：内置 createAsyncThunk，集中管理异步生命周期。
+
+
+### 2.使用示例
+-  创建 Redux State Slice： slice 需要一个字符串名称来标识切片、一个初始 state 以及一个或多个定义了该如何更新 state 的 reducer 函数。slice 创建后 ，我们可以导出 slice 中生成的 Redux action creators 和 reducer 函数
+
+```javascript
+// features/counter/counterSlice.js
+import { createSlice } from '@reduxjs/toolkit'
+
+export const counterSlice = createSlice({
+  name: 'counter',
+  initialState: {
+    value: 0
+  },
+  reducers: {
+    increment: state => {
+      // Redux Toolkit 允许我们在 reducers 写 "可变" 逻辑。它
+      // 并不是真正的改变状态值，因为它使用了 Immer 库
+      // 可以检测到“草稿状态“ 的变化并且基于这些变化生产全新的
+      // 不可变的状态
+      state.value += 1
+    },
+    decrement: state => {
+      state.value -= 1
+    },
+    incrementByAmount: (state, action) => {
+      // action.payload为方法传入的参数
+      state.value += action.payload
+    }
+  }
+})
+// 每个 case reducer 函数会生成对应的 Action creators
+// 导出的 action 的 type 字段会自动加上 slice 的前缀，因此允许重名
+export const { increment, decrement, incrementByAmount } = counterSlice.actions
+
+export default counterSlice.reducer
+
+```
+
+- 将 Slice Reducers 添加到 Store 中：通过在 reducer 参数中定义一个字段，我们告诉 store 使用这个 slice reducer 函数来处理对该状态的所有更新
+
+```javascript
+// app/store.js
+import { configureStore } from '@reduxjs/toolkit'
+import counterReducer from '../features/counter/counterSlice'
+
+// 默认自动设置 thunk middleware
+export default configureStore({
+  reducer: {
+    counter: counterReducer
+  }
+})
+```
+
+- 为 React 提供 Redux Store：引入我们刚刚创建的 store , 通过 React-Redux 的`<Provider>`将`<App>`包裹起来,并将 store 作为 prop 传入
+
+```javascript
+// index.js
+import React from 'react'
+import ReactDOM from 'react-dom'
+import './index.css'
+import App from './App'
+import store from './app/store'
+import { Provider } from 'react-redux'
+
+ReactDOM.render(
+  <Provider store={store}>
+    <App />
+  </Provider>,
+  document.getElementById('root')
+)
+```
+
+- 在 React 组件中使用 Redux 状态和操作：使用 useSelector 从 store 中读取数据，使用 useDispatch dispatch actions
+
+```javascript
+// features/counter/Counter.js
+import React from 'react'
+import { useSelector, useDispatch } from 'react-redux'
+import { decrement, increment } from './counterSlice'
+import styles from './Counter.module.css'
+
+export function Counter() {
+  const count = useSelector(state => state.counter.value)
+  const dispatch = useDispatch()
+
+  return (
+    <div>
+      <div>
+        <button
+          aria-label="Increment value"
+          onClick={() => dispatch(increment())}
+        >
+          Increment
+        </button>
+        <span>{count}</span>
+        <button
+          aria-label="Decrement value"
+          onClick={() => dispatch(decrement())}
+        >
+          Decrement
+        </button>
+      </div>
+    </div>
+  )
+}
+```
+
+### 3.异步逻辑与数据请求createAsyncThunk
+- 使用 createAsyncThunk 定义异步函数：过程中实际会触发两个action`counter/fetchCount/pending`和`counter/fetchCount/fulfilled`
+
+```javascript
+export const incrementAsync = createAsyncThunk(
+  'counter/fetchCount',  // 用于作为生成action类型的前缀
+  async (amount) => {
+    const response = await fetchCount(amount);
+    // The value we return becomes the `fulfilled` action payload
+    return response.data;
+  }
+);
+```
+
+- 定义额外的 case reducer：监听异步函数产生的两个action进行处理
+
+```javascript
+export const counterSlice = createSlice({
+  name: 'counter',
+  initialState,
+  reducers: {
+    // reducer
+  },
+  extraReducers: (builder) => {
+    builder
+      .addCase(incrementAsync.pending, (state) => {
+        state.status = 'loading';
+      })
+      .addCase(incrementAsync.fulfilled, (state, action) => {
+        state.status = 'succeeded';
+        state.value += action.payload; // 异步函数返回的变量即为payload
+      })
+      .addCase(incrementAsync.rejected, (state, action) => {
+        state.status = 'failed'
+        state.error = action.error.message // 异步函数报错时内部处理将错误信息放入error字段中
+      });
+  },
+})
+```
+
+- 组件内部调用
+```javascript
+// redux内部处理成功/失败
+const handleSuccessSync = () => {
+  dispatch(incrementAsync(4))
+}
+
+// 组件内部处理成功/失败
+const handleComponentSync = async () => {
+  try {
+    const res = await dispatch(incrementAsync(4)).unwrap()
+    console.log(res) // 获取到action的payload字段
+  }
+  catch (err) {
+    console.log(err) // 获取到action的error字段
+  }
+}
+```
+
+
+### 4.提升渲染性能createSelector
+- 作用：用于记忆计算结果，若依赖参数未发生变化则不会重新计算
+- selector：入参规范中第一个为state，第二个为可选的传入的参数
+- 第一个参数：selector数组，返回的值作为依赖参数
+- 第二个参数：接受依赖参数用作输出计算
+- 对比useMemo：可用于跨组件共享缓存
+
+```javascript
+/* store/posts */
+import { createSlice, createAsyncThunk, createSelector } from '@reduxjs/toolkit'
+
+export const selectAllPosts = state => state.posts.posts
+
+export const selectPostById = (state, postId) =>
+  state.posts.posts.find(post => post.id === postId)
+
+export const selectPostsByUser = createSelector(
+  [selectAllPosts, (state, userId) => userId],
+  (posts, userId) => posts.filter(post => post.user === userId)
+)
+
+/* 组件中 */
+import { selectPostsByUser } from '@/store/posts'
+const postsForUser = useSelector(state => selectPostsByUser(state, userId))
+```
+
+### 5.范式化数据createEntityAdapter
+- 概念：自动将数组转换为`​{ ids: [], entities: {} }`​​结构，能够根据 ID 查找单个项的方法，而无需检查所有其他项
+- 规范化结构：`{ ids: [], entities: {} }` 格式
+```javascript
+const page = {
+  ids: ["1", "2", "3"],
+  entities: {
+    "1": {id: "1", title: '123'},
+    "2": {id: "2", title: '234'},
+    "3": {id: "3", title: '345'},
+  }
+}
+```
+- 排序支持：可自定义实体排序规则
+```javascript
+const pageAdapter = createEntityAdapter({
+  sortComparer: (a: item, b: item) => a.id - b.id
+})
+```
+
+- 提供预生成的 Reducer：内置 addOne、updateMany、removeAll 等常用操作用于 slice 中 reducer 字段的绑定
+```javascript
+export const pageSlice = createSlice({
+  name: 'page',
+  initialState,
+  reducers: {
+    pageAddOne: pageAdapter.addOne,
+    pageAddMany: pageAdapter.addMany,
+    pageUpdate: pageAdapter.updateOne,
+    pageUpdateAll: pageAdapter.setAll
+  },
+})
+```
+- 内置​记忆化选择器 Selector：提供 selectAll、selectById 等方法用于 slice 的导出作为选择器
+```javascript
+// 若选择器无需入参，如selectAllPage在组件中可直接调用useSelector(selectAllPage)
+// 若选择器有入参，如selectPageById在组件中调用useSelector(state = > selectPageById(state, id))
+export const {
+  selectAll: selectAllPage,
+  selectById: selectPageById,
+  selectIds: selectPageIds
+} = pageAdapter.getSelectors((state: RootState) => state.page) // 根据store中slice绑定的reducer名称索引字段
+```
+- 对比：
+  - 存储完整数据：父组件直接获取完整数据，当某个字段发生改变则会导致父组件重新渲染从而所有子组件重新渲染
+  - 存储id与id对应数据：父组件仅获取id数组，子组件内根据id获取对应某份数据。如果只是修改某份数据中某个参数，则仅触发某个子组件的重新渲染
+- 范式化数据完整定义
+
+```javascript
+/* store/page */
+import { createSlice, createAsyncThunk, createEntityAdapter, createSelector } from '@reduxjs/toolkit'
+import type { RootState } from './index'
+
+interface item {
+  id: number,
+  title: string
+  content?: string
+}
+
+const pageAdapter = createEntityAdapter({
+  sortComparer: (a: item, b: item) => a.id - b.id
+})
+
+// 初始化数据中添加以下字段主要用于后续可能的拓展
+const initialState = pageAdapter.getInitialState({
+  status: 'init',
+  error: null
+})
+
+export const pageSlice = createSlice({
+  name: 'page',
+  initialState,
+  reducers: {
+    pageAddOne: pageAdapter.addOne,
+    pageAddMany: pageAdapter.addMany,
+    pageUpdate: pageAdapter.updateOne, // entities中的id字段更新时，id数组内对应id也会更新
+    pageUpdateAll: pageAdapter.setAll,
+    pageUpdateContent: (state, action) => {
+      const {id, title, content} = action.payload
+      const page = state.entities[id]
+      if(page) {
+        page.title = title
+        page.content = content
+      }
+    }
+  },
+  extraReducers(builder) {
+    builder.addCase(pageAsync.fulfilled, (state, action) => {
+      pageAdapter.setAll(state, action.payload);
+    });
+  }
+})
+
+interface IncrementAsyncResponse {
+  id: number;
+  title: string;
+}
+
+export const pageAsync = createAsyncThunk<IncrementAsyncResponse[]>(
+  'page/fetch',  // 用于作为生成action类型的前缀
+  async () => {
+    const response: IncrementAsyncResponse[] = await new Promise((res) => {
+      setTimeout(() => {
+        res([
+          {
+            id: 1,
+            title: '123'
+          },
+          {
+            id: 2,
+            title: '234'
+          }
+        ])
+      }, 0)
+    });
+    return response;
+  }
+);
+
+
+export const {
+  selectAll: selectAllPage,
+  /* selectById: selectPageById, */
+  selectIds: selectPageIds
+} = pageAdapter.getSelectors((state:RootState) => state.page)
+
+export const selectPageById = createSelector(
+  [selectAllPage, (_, id) => id],
+  (pageList, id) => pageList.find(item => item.id === id)
+)
+
+export const { pageAddOne, pageAddMany, pageUpdate, pageUpdateAll, pageUpdateContent } = pageSlice.actions
+
+export default pageSlice.reducer
+```
+
+- 组件内调用示例
+```javascript
+interface item {
+  id: number,
+  title: string
+  content?: string
+}
+
+const targetPage : item = useSelector(state => selectPageById(state, 3))
+const pageList : Array<item> = useSelector(selectAllPage)
+
+const handleGetPage = () => {
+  dispatch(pageAsync())
+}
+const handleAddOne = () => {
+  const currentId = pageList[pageList.length - 1].id
+  dispatch(pageAddOne({
+    id: currentId + 1,
+    title: String(currentId + 1) + String(currentId + 2) + String(currentId + 3)
+  }))
+}
+const handleUpdateCurrent = () => {
+  const currentId = pageList[pageList.length - 1].id
+  dispatch(pageUpdate({
+    id: currentId,
+    changes: {
+      id: currentId + 1,
+      title: String(currentId + 1) + String(currentId + 2) + String(currentId + 3)
+    }
+  }))
+}
+const handleUpdateAll = () => {
+  dispatch(pageUpdateAll([
+    {
+      id: 2,
+      title: '234'
+    },
+    {
+      id: 3,
+      title: 345
+    }
+  ]))
+}
+
+const handleUpdateContent = () => {
+  dispatch(pageUpdateContent({
+    id: 3,
+    title: '345',
+    content: 'test'
+  }))
+}
+```
+
+
+## 16.Ant-design
 ### 1.Form组件表单值未重置
 - 问题：props值改变，Form组件初始值未对应重置
 - 原因：Form组件绑定initialValues后，即使对应绑定的值发生改变也不会对应重置
@@ -2508,7 +2684,7 @@ useEffect(() => {
 ```
 
 
-## 16.性能优化
+## 17.性能优化
 - 原则：先写无优化代码，明显出现性能问题时再去选择优化
 - 原因：优化可能起负作用
   - 如浅比较 props 和 state 可能带来性能损耗（尤其是大型对象）
@@ -2517,3 +2693,35 @@ useEffect(() => {
   - 子组件渲染成本高​（如复杂计算、大量 DOM 节点）
   - 子组件在列表中被频繁更新​（如长列表中的每一项）
   - 子组件依赖的 props 未变化但父组件频繁渲染
+
+
+## 18.Redux DevToools
+- 浏览器安装相应扩展：`https://microsoftedge.microsoft.com/addons/Microsoft-Edge-Extensions-Home?hl=zh-CN`
+- Redux开启工具项
+```javascript
+const store = configureStore({
+  reducer: {
+    counter
+  },
+  devTools: true
+});
+```
+- 开发者工具中出现对应Redux选项卡
+
+
+## 19.样式定义
+- 全局样式
+  - 方法：定义样式文件后在任意组件中导入后全局生效
+  - 缺陷：需要避免样式全局污染
+- 内联样式
+  - 方法：元素上直接绑定style对象
+  - 缺陷：代码混乱、限制驼峰命名、伪类伪元素无法定义、每次渲染都创建样式对象
+- 声明式内联样式
+  - 方法：渲染函数外定义对象，元素内style绑定对象
+  - 缺陷：相比起内联样式不限制驼峰命名以及不会重复渲染创建
+- CSS Module
+  - 方法：定义`xxx.module.less`文件，引入对应组件时会对类名进行哈希化限制局部样式，元素绑定`className={styles.title}`
+  - 缺陷：className绑定限制形式、无法动态修改某些样式
+- CSS-in-JS
+  - 方法：由第三方库通过JS生成CSS样式，如`styled-components`
+  - 缺陷：样式不直观、需要依赖第三方库

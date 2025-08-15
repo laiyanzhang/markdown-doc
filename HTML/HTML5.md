@@ -180,8 +180,66 @@ function showError(error)
 - web sql与indexdb：localforge第三方库
 
 
+## 11.localForge
+> 将indexedDB封装成第三方库，可以通过类似于localStorage的调用方式使用；内置优雅降级，在不支持indexedDB或web sql时使用localStorage
 
-## 11.web worker
+### 1.vue引入
+```javascript
+// npm install localforage
+
+import localforage from "localforage";
+localforage.config({driver: localforage.INDEXEDDB});
+Vue.prototype.$localforage = localforage;
+```
+
+
+### 2.调用方式
+- promise方式：`localforage.setItem('key', 'value').then(function)`
+- 回调方式：`localforage.setItem('key', 'value', function)`
+
+
+### 3.数据API
+- 获取：`getItem(key, successCallback)`
+- 设置：`setItem(key, value, successCallback)`
+- 删除：`removeItem(key, successCallback)`
+- 清空：`clear(successCallback)`
+- 长度：`length(successCallback)`
+- 索引：`key(keyIndex, successCallback)`
+- 全量：`keys(successCallback)`
+- 迭代：`iterate(iteratorCallback, successCallback)`
+
+
+### 4.设置API
+- `setDriver(driverName/[driverNames])`
+  - 强制使用特定的驱动或者固定优先级顺序的驱动
+  - driverName可选项
+     - `localforage.INDEXEDDB`
+     - `localforage.WEBSQL`
+     - `localforage.LOCALSTORAGE`
+- `config(options)`
+  - 设置全局通用的配置，必须在调用数据API前调用该API
+  - options参数
+     - driver：驱动，规则与setDriver相同
+     - name：数据库名称，默认值：localforge
+     - size：数据库大小，仅用于web sql
+     - storeName：仓库名称，默认值：keyvaluepairs
+     - version：数据库版本
+     - description：数据库描述
+
+### 5.驱动API
+- 自定义驱动：`defineDriver(myCustomDriver)`
+- 返回正在使用驱动：`driver()`
+- 确定驱动是否启动：`ready()`
+- 判断浏览器是否支持driverName：`supports(driverName)`
+
+
+### 6.多实例
+- 创建返回localForge实例：`createInstance(config)`
+- 删除数据库/仓库：`dropInstance({ name: '', storeName: '' })`
+  
+
+
+## 12.web worker
 ### 1.基础概念
 - 概念：运行在后台的 JavaScript，独立于其他脚本，用于处理需要大量计算的耗时任务，避免阻塞主线程导致页面卡顿
 - 判断是否使用标准：运算超过16ms（一帧的时间）；用户操作后出现明显卡顿或延迟
@@ -250,7 +308,7 @@ worker.onerror = function(e) {
 ```
 
 
-## 12.SSE
+## 13.SSE
 - SSE：网页自动获取来自服务器的更新，适用于服务器单向高频的数据发送
 - 使用：接受服务器对应url传输的数据
 ```javascript
@@ -261,7 +319,7 @@ source.onmessage=function(event)
 };
 ```
 
-## 13.WebSocket
+## 14.WebSocket
 - 定义：客户端与服务端全双工通信
 ```javascript
 var ws = new WebSocket("ws://localhost:9998/echo");
