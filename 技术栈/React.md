@@ -2725,3 +2725,291 @@ const store = configureStore({
 - CSS-in-JS
   - 方法：由第三方库通过JS生成CSS样式，如`styled-components`
   - 缺陷：样式不直观、需要依赖第三方库
+
+
+## 20.Zustand
+### 1.基础概念
+- 初始化
+```javascript
+import { create } from 'zustand'
+
+const useBearStore = create((set) => ({
+  bears: 0,
+  increasePopulation: () => set((state) => ({ bears: state.bears + 1 })),
+  removeAllBears: () => set({ bears: 0 }),
+}))
+```
+- 获取数据
+```javascript
+function BearCounter() {
+  const bears = useBearStore((state) => state.bears)
+  return <h1>{bears} around here ...</h1>
+}
+```
+- 更新数据
+```javascript
+function Controls() {
+  const increasePopulation = useBearStore((state) => state.increasePopulation)
+  return <button onClick={increasePopulation}>one up</button>
+}
+```
+- 数据变化组件更新
+```javascript
+import { shallow } from 'zustand/shallow'
+// 组件在每次状态更改时都进行更新
+const state = useBearStore()
+// 检测严格相等的变化，不相等时触发更新
+const nuts = useBearStore((state) => state.nuts)
+// 自定义的对比函数控制组件更新
+const treats = useBearStore(
+  (state) => state.treats,
+  (oldTreats, newTreats) => compare(oldTreats, newTreats)
+)
+// 选择 Object, 当`state.nuts`或`state.honey`发生变化后，组件重新渲染
+const { nuts, honey } = useBearStore(
+  (state) => ({ nuts: state.nuts, honey: state.honey }),
+  shallow
+)
+// 选择 Array, 当`state.nuts`或`state.honey`发现变化后，组件重新渲染
+const [nuts, honey] = useBearStore(
+  (state) => [state.nuts, state.honey],
+  shallow
+)
+// 选择 Map, 当`state.treats`的排序、数量和 key 发生变化后, 组件重新渲染
+const treats = useBearStore((state) => Object.keys(state.treats), shallow)
+```
+- 更新与合并状态
+```javascript
+const useStore = create((set) => ({
+  salmon: 1,
+  tuna: 2,
+  setSalmon: (newVal) => set(() => ({ salmon:1 })),  // 不会抹除掉 tuna，将得到 {salmon, tuna, setSalmon }
+}))
+```
+- 删除及覆盖状态
+```javascript
+import omit from 'lodash-es/omit'
+
+const useStore = create((set) => ({
+  salmon: 1,
+  tuna: 2,
+  deleteTuna: () => set((state) => omit(state, ['tuna']), true), // 将删除 state.tuna ，保留其它 state、actions
+  deleteEverything: () => set({}, true), // 将清除掉完整的 store，包括 state、actions
+}))
+```
+- 异步操作
+```javascript
+const useFishStore = create((set) => ({
+  fishies: {},
+  fetch: async (pond) => {
+    const response = await fetch(pond)
+    set({ fishies: await response.json() })
+    // 异步操作中通过 set 获取 state
+    set((state)=>{
+      console.log(state.fishies)
+    })
+    // 异步操作中通过 get 获取 state
+    set(()=>{
+      console.log(get().fishies)
+    })
+  },
+}))
+```
+- 持久化存储
+```javascript
+import { create } from 'zustand'
+import { persist } from 'zustand/middleware'
+
+const useFishStore = create()(
+  persist(
+    (set, get) => ({
+      fishes: 0,
+      addAFish: () => set({ fishes: get().fishes + 1 }),
+    }),
+    {
+      name: 'food-storage', // localStorage key.
+      partialize: (state) => ({ fishes: state.fishes }), // 存储到'localStorage'自动使用中间件
+    }
+  )
+)
+```
+- immer
+```javascript
+import { create } from 'zustand'
+import { immer } from 'zustand/middleware/immer'
+
+const useBeeStore = create()(
+  immer((set) => ({
+    bees: 0,
+    addBees: (by) =>
+      set((state) => {
+        state.bees += by
+      }),
+  }))
+)
+```
+
+
+### 2.完整示例
+- 定义
+```javascript
+import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
+import { immer } from 'zustand/middleware/immer';
+
+// 定义类型
+type Todo = {
+  id: string;
+  text: string;
+  done: boolean;
+};
+
+type TodoStore = {
+  todos: Todo[];
+  filter: 'all' | 'active' | 'completed';
+  addTodo: (text: string) => void;
+  toggleTodo: (id: string) => void;
+  deleteTodo: (id: string) => void;
+  setFilter: (filter: 'all' | 'active' | 'completed') => void;
+  fetchTodos: () => Promise<void>; // 异步示例
+};
+
+// 创建 Store（集成 Immer + 持久化）
+export const useTodoStore = create<TodoStore>()(
+  persist(
+    immer((set, get) => ({
+      todos: [],
+      filter: 'all',
+      addTodo: (text) => {
+        set((state) => {
+          state.todos.push({ 
+            id: Date.now().toString(), 
+            text, 
+            done: false 
+          });
+        });
+      },
+      toggleTodo: (id) => {
+        set((state) => {
+          const todo = state.todos.find((t) => t.id === id);
+          if (todo) todo.done = !todo.done; // Immer 允许直接修改
+        });
+      },
+      deleteTodo: (id) => {
+        set((state) => {
+          state.todos = state.todos.filter((t) => t.id !== id);
+        });
+      },
+      setFilter: (filter) => set({ filter }),
+      fetchTodos: async () => {
+        set({ todos: [] }); // 清空当前列表
+        try {
+          const res = await fetch('https://dummyjson.com/todos');
+          const data = await res.json();
+          set({ todos: data.todos.slice(0, 3) }); // 模拟取3条
+        } catch (error) {
+          console.error("Fetch failed:", error);
+        }
+      },
+    })),
+    {
+      name: 'todo-storage', // localStorage 存储的 key
+      partialize: (state) => ({ todos: state.todos }), // 只持久化 todos
+    }
+  )
+);
+```
+- 调用
+```javascript
+import { useTodoStore } from '@/store/todoStore';
+import { shallow } from 'zustand/shallow';
+
+export const TodoApp = () => {
+  // 使用选择器 + shallow 优化：避免无关渲染
+  const { todos, filter, addTodo, toggleTodo, deleteTodo, setFilter, fetchTodos } = 
+    useTodoStore(
+      (state) => ({
+        todos: state.todos,
+        filter: state.filter,
+        addTodo: state.addTodo,
+        toggleTodo: state.toggleTodo,
+        deleteTodo: state.deleteTodo,
+        setFilter: state.setFilter,
+        fetchTodos: state.fetchTodos,
+      }),
+      shallow
+    );
+
+  // 计算过滤后的待办事项
+  const filteredTodos = todos.filter((todo) => {
+    if (filter === 'active') return !todo.done;
+    if (filter === 'completed') return todo.done;
+    return true;
+  });
+
+  return (
+    <div className="p-4 max-w-md mx-auto">
+      <h1 className="text-2xl font-bold mb-4">Zustand Todo App</h1>
+      
+      {/* 添加新待办 */}
+      <div className="flex mb-4">
+        <input
+          type="text"
+          placeholder="输入任务..."
+          className="flex-1 border p-2 mr-2"
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && e.currentTarget.value.trim()) {
+              addTodo(e.currentTarget.value);
+              e.currentTarget.value = '';
+            }
+          }}
+        />
+        <button 
+          onClick={fetchTodos}
+          className="bg-blue-500 text-white px-4 py-2"
+        >
+          加载示例
+        </button>
+      </div>
+
+      {/* 过滤选项 */}
+      <div className="flex space-x-2 mb-4">
+        {(['all', 'active', 'completed'] as const).map((f) => (
+          <button
+            key={f}
+            onClick={() => setFilter(f)}
+            className={`px-3 py-1 ${filter === f ? 'bg-gray-800 text-white' : 'bg-gray-200'}`}
+          >
+            {f}
+          </button>
+        ))}
+      </div>
+
+      {/* 待办列表 */}
+      <ul className="space-y-2">
+        {filteredTodos.map((todo) => (
+          <li key={todo.id} className="flex items-center justify-between border-b pb-2">
+            <div className="flex items-center">
+              <input
+                type="checkbox"
+                checked={todo.done}
+                onChange={() => toggleTodo(todo.id)}
+                className="mr-2"
+              />
+              <span className={todo.done ? 'line-through text-gray-500' : ''}>
+                {todo.text}
+              </span>
+            </div>
+            <button 
+              onClick={() => deleteTodo(todo.id)}
+              className="text-red-500 hover:text-red-700"
+            >
+              删除
+            </button>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+};
+```

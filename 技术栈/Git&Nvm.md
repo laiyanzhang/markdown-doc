@@ -89,7 +89,7 @@
 ## 11.sourctree提交报错
 ### 1.提交时ssh端口22报错
 - 设置.ssh文件夹下的config文件
-```txt
+```bash
 Host github.com
   Hostname ssh.github.com  # 关键：使用 GitHub 的 SSH 代理服务
   Port 443                 # 强制使用 HTTPS 端口
@@ -97,3 +97,17 @@ Host github.com
   IdentityFile ~/.ssh/id_rsa  # 确认路径指向您的私钥
 ```
 - 修改仓库设置，将远程仓库路径的ssh地址修改为https地址
+
+
+### 2.修复网络问题
+- 报错：`fatal: expected 'packfile'`
+```bash
+# 增大 Git 网络缓冲区（解决大仓库传输中断）
+git config --global http.postBuffer 524288000  # 500MB
+
+# 降低 HTTP 协议版本（避开某些代理问题）
+git config --global http.version HTTP/1.1
+
+# 关闭 Git 压缩（网络差时可减少干扰）
+git config --global core.compression 0
+```
