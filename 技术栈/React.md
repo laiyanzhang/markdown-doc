@@ -2260,6 +2260,38 @@ function Favorite({ contact }) {
 }
 ```
 
+### 11.tanstack/react-router
+- 首页重定向设置
+```javascript
+const indexRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/',
+  beforeLoad: () => {
+    throw redirect({ to: '/agent' });
+  },
+});
+```
+- 路由监听
+```javascript
+export const router = createRouter({ routeTree });
+router.subscribe("onBeforeNavigate", (match) => {
+  if (match && match.toLocation) {
+    const name = match.toLocation.pathname;
+    handleRouteChange(name);
+  }
+});
+```
+- 重定向踩坑：网页经过重定向后，后续的onBeforeNavigate监听事件失效
+```javascript
+// 监听onResolved事件作为重定向后的补充监听
+router.subscribe("onResolved", (match) => {
+  if (match && match.toLocation) {
+    const name = match.toLocation.pathname;
+    handleRouteChange(name);
+  }
+});
+```
+
 ## 15.Redux Toolkit
 
 ### 1.对比原生Redux 
