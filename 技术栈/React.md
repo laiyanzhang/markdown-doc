@@ -2267,7 +2267,8 @@ const indexRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/',
   beforeLoad: () => {
-    throw redirect({ to: '/agent' });
+    // 如果不设置reloadDocument: true会导致onBeforeNavigate监听事件失效
+    throw redirect({ to: '/agent', reloadDocument: true });
   },
 });
 ```
@@ -2275,16 +2276,6 @@ const indexRoute = createRoute({
 ```javascript
 export const router = createRouter({ routeTree });
 router.subscribe("onBeforeNavigate", (match) => {
-  if (match && match.toLocation) {
-    const name = match.toLocation.pathname;
-    handleRouteChange(name);
-  }
-});
-```
-- 重定向踩坑：网页经过重定向后，后续的onBeforeNavigate监听事件失效
-```javascript
-// 监听onResolved事件作为重定向后的补充监听
-router.subscribe("onResolved", (match) => {
   if (match && match.toLocation) {
     const name = match.toLocation.pathname;
     handleRouteChange(name);
